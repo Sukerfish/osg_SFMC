@@ -21,6 +21,13 @@ setwd("C:/Users/Gymnothorax/Documents/COT")
 
 load("M120.RData")
 
+c_Coppens1981 <- function(D,S,T){
+  t <- T/10
+  D = D/1000
+  c0 <- 1449.05 + 45.7*t - 5.21*(t^2)  + 0.23*(t^3)  + (1.333 - 0.126*t + 0.009*(t^2)) * (S - 35)
+  c <- c0 + (16.23 + 0.253*t)*D + (0.213-0.1*t)*(D^2)  + (0.016 + 0.0002*(S-35))*(S- 35)*t*D
+  return(c)
+}
 
 #pull out science variables
 scivars <- glider %>%
@@ -36,13 +43,15 @@ startdate <- as.character(min(glider$m_present_time))
 enddate <- as.character(max(glider$m_present_time))
 
 # Define UI for application that draws a histogram
-ui <- fluidPage(
+ui <- navbarPage("Better SFMC",
   
-  # Application title
-  titlePanel("Better SFMC"),
+  
+  
+    tabPanel("Mission Parameters",
+             actionButton("initialize", "Initialize Mission Data"),
   fluidRow(
     column(4,
-           actionButton("simulate", "Mission Parameter Refresh"),
+           
            dateInput("date1", "Start Date:", value = startdate, min = startdate, max = enddate, format = "mm/dd/yy"),
            dateInput("date2", "End Date:", value = enddate, min = startdate, max = enddate, format = "mm/dd/yy")),
     column(4,
@@ -64,8 +73,15 @@ ui <- fluidPage(
              numericInput("min", "Sci Axis Minimum", NULL, min = 1, max = 100),
              numericInput("max", "Sci Axis Maximum", NULL, min = 1, max = 100))),
     column(9,
-           plotOutput("sciplot"))
-  ),
+           h4("Brush and double-click to zoom (double-click again to reset)"),
+           plotOutput("sciplot",
+                      dblclick = "sciplot_dblclick",
+                      brush = brushOpts(
+                        id = "sciplot_brush",
+                        resetOnNew = TRUE
+                      )))
+  )),
+  tabPanel("Flight Data",
   fluidRow(
     column(3,
            wellPanel(
@@ -78,8 +94,25 @@ ui <- fluidPage(
              #                    choices = c(flightvars),
              #                    selected = c("m_roll")))),
     column(9,
-           plotOutput("flightplot"))
-  ),
+           h4("Brush and double-click to zoom (double-click again to reset)"),
+           plotOutput("flightplot",
+           dblclick = "flightplot_dblclick",
+           brush = brushOpts(
+             id = "flightplot_brush",
+             resetOnNew = TRUE
+           )))
+  )),
+  tabPanel("Sound Velocity",
+           fluidRow(
+             column(3,
+                    wellPanel(
+                      numericInput("min", "Sound Axis Minimum", NULL, min = 1, max = 100),
+                      numericInput("max", "Sound Axis Maximum", NULL, min = 1, max = 100))),
+             column(9,
+                    plotOutput("soundplot"))
+           ),
+    
+  )
   
   # Sidebar 
   # sidebarLayout(
@@ -116,16 +149,20 @@ ui <- fluidPage(
 # Define server logic
 server <- function(input, output, session) {
   
+  ranges <- reactiveValues(x = NULL, y = NULL)
+  rangesci <- reactiveValues(x = NULL, y = NULL)
   
   
-  
-  #dynamically filter out viewable area
-  chunk <- eventReactive(input$simulate, {
+  #dynamically filter out viewable area and calculate SV
+  chunk <- eventReactive(input$initialize, {
     filter(glider, m_present_time >= input$date1 & m_present_time <= input$date2) %>%
       filter(status %in% c(input$status)) %>%
       filter(!(is.na(input$display_var)
                | is.na(m_depth))) %>%
-      filter(sci_rbrctd_depth_00 >= input$min_depth)
+      filter(sci_rbrctd_depth_00 >= input$min_depth) %>%
+      mutate(soundvel1 = c_Coppens1981(sci_rbrctd_depth_00,
+                                       sci_rbrctd_salinity_00,
+                                       sci_rbrctd_temperature_00))
     
   })
   
@@ -141,8 +178,11 @@ server <- function(input, output, session) {
         na.rm = TRUE
       ) +
       ylab("Depth (m)") +
+      coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
       #xlab(xlabel) +
       scale_y_reverse() +
+      #scale_y_continuous(trans = "reverse") +
+      
       scale_colour_viridis_c(limits = c(input$min, input$max)) +
       geom_point(data = filter(chunk(), m_water_depth > 0),
                  aes(y = m_water_depth),
@@ -150,6 +190,31 @@ server <- function(input, output, session) {
                  na.rm = TRUE
       ) +
       theme_minimal()
+  })
+  
+  observeEvent(input$flightplot_dblclick, {
+    brush <- input$flightplot_brush
+    if (!is.null(brush)) {
+      ranges$x <- as.POSIXct(c(brush$xmin, brush$xmax), origin = "1970-01-01")
+      ranges$y <- c(brush$ymin, brush$ymax)
+      
+    } else {
+      ranges$x <- NULL
+      ranges$y <- NULL
+    }
+  })
+  
+  observeEvent(input$sciplot_dblclick, {
+    brush <- input$sciplot_brush
+    if (!is.null(brush)) {
+      rangesci$x <- as.POSIXct(c(brush$xmin, brush$xmax), origin = "1970-01-01")
+      #REVERSED RANGE DUE TO REVERSED Y
+      rangesci$y <- c(brush$ymax, brush$ymin)
+      
+    } else {
+      rangesci$x <- NULL
+      rangesci$y <- NULL
+    }
   })
   
   output$flightplot <- renderPlot({
@@ -172,6 +237,7 @@ server <- function(input, output, session) {
       #scale_y_reverse() +
       # scale_colour_viridis_c(
       #   limits = c(input$min,input$max)) +
+      coord_cartesian(xlim = ranges$x, ylim = ranges$y, expand = FALSE) +
       theme_minimal()
     
       # ggplot(data =
@@ -184,6 +250,27 @@ server <- function(input, output, session) {
       #            color=variable)
       
   })
+  
+  output$soundplot <- renderPlot({
+    # create plot
+    ggplot(chunk(),
+           aes(x=m_present_time,
+               y=sci_rbrctd_depth_00,
+               z=soundvel1)) +
+      geom_point(
+        aes(color = soundvel1)
+      ) +
+      geom_point(data = filter(chunk(), m_water_depth > 0),
+                 aes(y = m_water_depth),
+                 size = 0.1,
+                 na.rm = TRUE
+      ) +
+      ylab("Depth (m)") +
+      scale_y_reverse() +
+      scale_colour_viridis_c(limits = c(limits = c(input$min, input$max)))
+    
+  })
+  
 }
 
 # Run the application 
