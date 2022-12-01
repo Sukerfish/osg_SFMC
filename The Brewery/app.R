@@ -44,10 +44,9 @@ startdate <- as.character(min(glider$m_present_time))
 enddate <- as.character(max(glider$m_present_time))
 
 # Define UI for application that draws a histogram
-ui <- navbarPage(
-  "The Brewery",
-  tabPanel(
-    "Mission Parameters",wellPanel(
+ui <- fluidPage(
+  titlePanel("The Brewery"),
+wellPanel(
     #start button
     actionButton("initialize", "(Re)load Mission Data", icon("arrows-rotate"), 
                  style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
@@ -95,7 +94,9 @@ ui <- navbarPage(
       )
     )),
     #science variable settings
-    fluidRow(
+    tabsetPanel(
+      tabPanel("Science Data",
+                fluidRow(
       column(
         3,
         wellPanel(
@@ -168,7 +169,7 @@ ui <- navbarPage(
                     )),
              column(9,
                     plotOutput("soundplot"))
-           ), )
+           ), ))
 )
 
 # Define server logic
