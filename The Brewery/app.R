@@ -10,8 +10,7 @@
 library(tidyverse)
 library(ggplot2)
 library(shiny)
-library(gridExtra)
-#library(Cairo)   # For nicer ggplot2 output when deployed on Linux
+#library(Cairo)   # For nicer ggplot2 output when deployed on Linux?
 
 #setwd("C:/Users/Gymnothorax/Box/Boxcar/COT")
 #setwd("C:/Users/Gymnothorax/Documents/COT")
@@ -48,9 +47,10 @@ enddate <- as.character(max(glider$m_present_time))
 ui <- navbarPage(
   "The Brewery",
   tabPanel(
-    "Mission Parameters",
+    "Mission Parameters",wellPanel(
     #start button
-    actionButton("initialize", "Initialize Mission Data"),
+    actionButton("initialize", "(Re)load Mission Data", icon("arrows-rotate"), 
+                 style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
     #parameter input row
     fluidRow(
       column(
@@ -93,7 +93,7 @@ ui <- navbarPage(
           selected = c("dive")
         )
       )
-    ),
+    )),
     #science variable settings
     fluidRow(
       column(
@@ -124,17 +124,17 @@ ui <- navbarPage(
            fluidRow(
              column(3,
                     wellPanel(
-                      selectInput(
-                        "flight_var",
-                        "Which flight variable(s) to display",
-                        choices = c(flightvars),
-                        selected = c("m_roll")
-                      )
-                    )),
-             # checkboxGroupInput("flight_var",
-             #                    "Which flight variable(s) to display",
-             #                    choices = c(flightvars),
-             #                    selected = c("m_roll")))),
+                    #   selectInput(
+                    #     "flight_var",
+                    #     "Which flight variable(s) to display",
+                    #     choices = c(flightvars),
+                    #     selected = c("m_roll")
+                    #   )
+                    # )),
+             checkboxGroupInput("flight_var",
+                                "Which flight variable(s) to display",
+                                choices = c(flightvars),
+                                selected = c("m_roll")))),
              column(
                9,
                h4("Brush and double-click to zoom (double-click again to reset)"),
@@ -248,28 +248,21 @@ server <- function(input, output, session) {
     #   flightxlabel <- "heading"
     # }
     
-    ggplot(chunk(), aes(x=m_present_time,
-                        y=.data[[input$flight_var]])) +
-      geom_point(
-        na.rm = TRUE
-        #aes(color = .data[[input$flight_var]])
-      ) +
-      #ylab("Depth (m)") +
-      #scale_y_reverse() +
-      # scale_colour_viridis_c(
-      #   limits = c(input$min,input$max)) +
+    ggplot(
+      data =
+        select(chunk(), m_present_time, all_of(input$flight_var)) %>%
+        pivot_longer(
+          cols = !m_present_time,
+          names_to = "variable",
+          values_to = "count") %>%
+        filter(!is.na(count)),
+      aes(x = m_present_time,
+          y = count,
+          color = variable,
+          shape = variable)) +
+      geom_point() +
       coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
       theme_minimal()
-    
-      # ggplot(data =
-      #          select(chunk(), m_present_time, input$flight_var) %>%
-      #          pivot_longer(cols = !m_present_time,
-      #              names_to = "variable",
-      #              values_to = "count"),
-      # aes(x=m_present_time)) +
-      # geom_point(y=count,
-      #            color=variable)
-      
   })
   
   #sound velocity plot
