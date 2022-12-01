@@ -36,30 +36,31 @@ chunk <- glider %>%
   #filter(status == "dive")
   mutate(soundvel1 = c_Coppens1981(sci_rbrctd_depth_00,
                        sci_rbrctd_salinity_00,
-                       sci_rbrctd_temperature_00))
-  # mutate(soundvel2 = c_Leroy08(sci_rbrctd_depth_00,
-  #                              sci_rbrctd_temperature_00,
-  #                              sci_rbrctd_salinity_00,
-  #                              ))
+                       sci_rbrctd_temperature_00)) %>%
+  mutate(soundvel2 = c_Leroy08(sci_rbrctd_depth_00,
+                               sci_rbrctd_temperature_00,
+                               sci_rbrctd_salinity_00,
+                               m_gps_lat
+                               ))
 
 test <- chunk %>%
-  filter(!(is.na(soundvel)
+  filter(!(is.na(soundvel2)
            | is.na(m_depth)))
 
 test <- chunk %>%
   filter(!(is.na(sci_rbrctd_salinity_00) | is.na(sci_rbrctd_temperature_00)
-         | is.na(m_depth)))
+         | is.na(sci_rbrctd_depth_00)))
 
 p1 <- ggplot(data=test,
        aes(x=m_present_time,
            y=sci_rbrctd_depth_00,
-           z=soundvel)) +
+           z=soundvel1)) +
   geom_point(
-    aes(color = soundvel)
+    aes(color = soundvel1)
   ) +
   scale_y_reverse() +
   scale_colour_viridis_c(limits = c(1515,
-                                    max(chunk$soundvel, na.rm = TRUE)))
+                                    max(chunk$soundvel1, na.rm = TRUE)))
 
 mean(chunk$soundvel, na.rm = TRUE)-5*sd(chunk$soundvel, na.rm = TRUE)
 
