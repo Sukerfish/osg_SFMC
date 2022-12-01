@@ -152,14 +152,14 @@ ui <- navbarPage(
              column(3,
                     wellPanel(
                       numericInput(
-                        "min",
+                        "soundmin",
                         "Sound Axis Minimum",
                         NULL,
                         min = 1,
                         max = 100
                       ),
                       numericInput(
-                        "max",
+                        "soundmax",
                         "Sound Axis Maximum",
                         NULL,
                         min = 1,
@@ -289,7 +289,7 @@ server <- function(input, output, session) {
       ) +
       ylab("Depth (m)") +
       scale_y_reverse() +
-      scale_colour_viridis_c(limits = c(limits = c(input$min, input$max)))
+      scale_colour_viridis_c(limits = c(limits = c(input$soundmin, input$soundmax)))
     
   })
   
