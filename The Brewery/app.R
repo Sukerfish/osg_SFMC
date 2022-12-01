@@ -46,7 +46,7 @@ enddate <- as.character(max(glider$m_present_time))
 
 # Define UI for application that draws a histogram
 ui <- navbarPage(
-  "Better SFMC",
+  "The Brewery",
   tabPanel(
     "Mission Parameters",
     #start button
