@@ -15,10 +15,10 @@ library(shiny)
 #setwd("C:/Users/Gymnothorax/Box/Boxcar/COT")
 #setwd("C:/Users/Gymnothorax/Documents/COT")
 
-# fileList <- list.files(path = ".",
-#            pattern = "*.RData")
+fileList <- list.files(path = ".",
+           pattern = "*.rds")
 
-load("M120.RData")
+#load("M120.RData")
 
 #https://rdrr.io/github/AustralianAntarcticDivision/ZooScatR/src/R/soundvelocity.R
 c_Coppens1981 <- function(D,S,T){
@@ -29,27 +29,19 @@ c_Coppens1981 <- function(D,S,T){
   return(c)
 }
 
-#pull out science variables
-scivars <- glider %>%
-  select(starts_with("sci")) %>%
-  colnames()
-
-#pull out flight variables
-flightvars <- glider %>%
-  select(!starts_with("sci")) %>%
-  colnames()
-
-#get start/end days
-startdate <- as.character(min(glider$m_present_time))
-enddate <- as.character(max(glider$m_present_time))
-
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   titlePanel("The Brewery"),
 wellPanel(
     #start button
-    actionButton("initialize", "(Re)load Mission Data", icon("arrows-rotate"), 
-                 style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+    actionButton("load", "Load Mission Data", icon("arrows-rotate"), 
+                 style="color: #fff; background-color: #963ab7; border-color: #2e6da4"),
+      selectInput(
+        "mission",
+        "Which mission data to display",
+        choices = c(fileList),
+        selected =  NULL
+      ),
     #parameter input row
     fluidRow(
       column(
@@ -57,17 +49,17 @@ wellPanel(
         dateInput(
           "date1",
           "Start Date:",
-          value = startdate,
-          min = startdate,
-          max = enddate,
+          value = NULL,
+          min = NULL,
+          max = NULL,
           format = "mm/dd/yy"
         ),
         dateInput(
           "date2",
           "End Date:",
-          value = enddate,
-          min = startdate,
-          max = enddate,
+          value = NULL,
+          min = NULL,
+          max = NULL,
           format = "mm/dd/yy"
         )
       ),
@@ -93,6 +85,8 @@ wellPanel(
         )
       )
     )),
+actionButton("initialize", "Visualize", icon("plane"), 
+             style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
     #science variable settings
     tabsetPanel(
       tabPanel("Science Data",
@@ -103,7 +97,7 @@ wellPanel(
           selectInput(
             "display_var",
             "Which science variable to display",
-            choices = c(scivars)
+            choices = NULL
           ),
           numericInput("min", "Sci Axis Minimum", NULL, min = 1, max = 100),
           numericInput("max", "Sci Axis Maximum", NULL, min = 1, max = 100)
@@ -134,8 +128,7 @@ wellPanel(
                     # )),
              checkboxGroupInput("flight_var",
                                 "Which flight variable(s) to display",
-                                choices = c(flightvars),
-                                selected = c("m_roll")))),
+                                choices = NULL))),
              column(
                9,
                h4("Brush and double-click to zoom (double-click again to reset)"),
@@ -175,13 +168,41 @@ wellPanel(
 # Define server logic
 server <- function(input, output, session) {
   
+    #glider = readRDS(fileList[1])
+  glider = reactive({
+    #req(input$mission)
+    readRDS(input$mission)
+  })
+    
+  observeEvent(input$load, {
+  #pull out science variables
+  scivars <- glider() %>%
+    select(starts_with("sci")) %>%
+    colnames()
+  
+  #pull out flight variables
+  flightvars <- glider() %>%
+    select(!starts_with("sci")) %>%
+    colnames()
+  
+  #get start/end days
+  updateDateInput(session, "date1", NULL, min = min(glider()$m_present_time), max = max(glider()$m_present_time), value = min(glider()$m_present_time))
+  updateDateInput(session, "date2", NULL, min = min(glider()$m_present_time), max = max(glider()$m_present_time), value = max(glider()$m_present_time))
+  updateSelectInput(session, "display_var", NULL, choices = c(scivars))
+  updateCheckboxGroupInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
+  showNotification("Data primed")
+  })
+  
+  
+  
+  
   #ranges for plot zooms
   rangefli <- reactiveValues(x = NULL, y = NULL)
   rangesci <- reactiveValues(x = NULL, y = NULL)
   
   #dynamically filter out viewable area and calculate SV
   chunk <- eventReactive(input$initialize, {
-    filter(glider, m_present_time >= input$date1 & m_present_time <= input$date2) %>%
+    filter(glider(), m_present_time >= input$date1 & m_present_time <= input$date2) %>%
       filter(status %in% c(input$status)) %>%
       #filter(!(is.na(input$display_var) | is.na(m_depth))) %>%
       filter(sci_rbrctd_depth_00 >= input$min_depth) %>%
