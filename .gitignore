@@ -4,3 +4,4 @@
 .Ruserdata
 *.Rdata
 *.ssv
+*.rds

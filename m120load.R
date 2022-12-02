@@ -28,4 +28,4 @@ glider <- nohead %>%
 
 glider$m_present_time <- as_datetime(glider$m_present_time)
 
-save(headers, glider, file = "M120.RData")
+saveRDS(glider, file = "M120.rds")
