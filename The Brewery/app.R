@@ -10,6 +10,9 @@
 library(tidyverse)
 library(ggplot2)
 library(shiny)
+#library(PlotSvalbard) #devtools::install_github("MikkoVihtakari/PlotSvalbard", upgrade = "never")
+#library(patchwork)
+#library(cowplot)
 #library(Cairo)   # For nicer ggplot2 output when deployed on Linux?
 
 #setwd("C:/Users/Gymnothorax/Box/Boxcar/COT")
@@ -31,6 +34,18 @@ c_Coppens1981 <- function(D,S,T){
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
+  #force notifications to center of page
+  tags$head(
+    tags$style(
+      HTML(".shiny-notification {
+             position:fixed;
+             top: calc(50%);
+             left: calc(50%);
+             }
+             "
+      )
+    )
+  ),
   titlePanel("The Brewery"),
 wellPanel(
     #start button
@@ -190,7 +205,7 @@ server <- function(input, output, session) {
   updateDateInput(session, "date2", NULL, min = min(glider()$m_present_time), max = max(glider()$m_present_time), value = max(glider()$m_present_time))
   updateSelectInput(session, "display_var", NULL, choices = c(scivars))
   updateCheckboxGroupInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
-  showNotification("Data primed")
+  showNotification("Data primed", type = "message")
   })
   
   
@@ -285,6 +300,24 @@ server <- function(input, output, session) {
       geom_point() +
       coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
       theme_minimal()
+    
+    # plotup <- list()
+    # for (i in input$flight_var){
+    #   plotup[[i]] = ggplot(data = select(chunk(), m_present_time, all_of(i)) %>%
+    #     pivot_longer(
+    #       cols = !m_present_time,
+    #       names_to = "variable",
+    #       values_to = "count") %>%
+    #     filter(!is.na(count)),
+    #     aes(x = m_present_time,
+    #         y = count,
+    #         color = variable,
+    #         shape = variable)) +
+    #     geom_point() +
+    #     coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
+    #     theme_minimal()
+    # }
+    # wrap_plots(plotup, ncol = 1)
   })
   
   #sound velocity plot
