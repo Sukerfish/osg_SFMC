@@ -43,16 +43,25 @@ chunk <- glider %>%
   filter(m_present_time >= "2022-10-15" & m_present_time < "2022-11-03") %>%
   mutate(status = if_else(m_avg_depth_rate > 0, "dive", "climb")) %>%
   fill(status) %>%
-  filter(status == "dive") %>%
+  #filter(status == "dive") %>%
   mutate(soundvel1 = c_Coppens1981(sci_rbrctd_depth_00,
                                    sci_rbrctd_salinity_00,
                                    sci_rbrctd_temperature_00)) %>%
   mutate(conTemp = gsw_CT_from_t(sci_rbrctd_salinity_00, sci_rbrctd_temperature_00, sci_rbrctd_pressure_00)) %>%
   mutate(soundvel2 = gsw_sound_speed(sci_rbrctd_salinity_00, conTemp, sci_rbrctd_pressure_00))
   
-pings <- chunk %>%
-  filter(!is.na(m_water_depth)) %>%
-  mutate(pingTime = 2*sci_rbrctd_depth_00*1540) #D = 1/2*v*t
+# pings <- chunk %>%
+#   filter(!is.na(m_water_depth)) %>%
+#   mutate(pingTime = 2*sci_rbrctd_depth_00*1540) #D = 1/2*v*t
+
+chunkSummary <- chunk %>%
+  select(all_of(input)) %>%
+  summarise(across(everything(), list(stdev = ~ sd(.x, na.rm = TRUE), mean = ~ mean(.x, na.rm = TRUE))))
+            
+zunk <- chunk %>%
+  select(all_of(input)) %>%
+  mutate(across(m_roll, zscore = ((avg - LTmean)/stdev))))
+  
 
 # ts_plot(chunk %>%
 #           filter(!is.na(sci_water_temp)),
