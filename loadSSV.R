@@ -1,18 +1,43 @@
 library(tidyverse)
-library(hacksaw)
 library(lubridate)
 
 missionNumber <- "M120"
 
+head <- read.csv(paste0(missionNumber,".ssv"),
+                 sep="", #whitespace as delimiter
+                 nrows=1)
+
 raw <- read.csv(paste0(missionNumber,".ssv"),
                 sep="", #whitespace as delimiter
-                x=as.numeric(x),
-                header = T)[-1,] #remove first line from df (units)
+                skip=2,
+                header = FALSE)
 
-#raw <- read_delim(paste0(missionNumber,".ssv"))
+colnames(raw) <- colnames(head)
+
+raw <- raw %>%
+  mutate(m_present_time = as_datetime(m_present_time)) #convert to POSIXct
+
+gps <- raw %>%
+  select(m_present_time, m_lat, m_lon)
+
+library(zoo)
+
+full.time <- with(gps,seq(m_present_time[1],tail(m_present_time,1),by=1)) #grab full list of timestamps
+gps.zoo <- zoo(gps[2:3], gps$m_present_time) #convert to zoo
+result <- na.approx(gps.zoo, xout = full.time) #interpolate
+
+igps <- fortify.zoo(result) %>% #extract out as DF
+  rename(i_lat = m_lat) %>%
+  rename(i_lon = m_lon) %>%
+  rename(m_present_time = Index) %>%
+  mutate(m_present_time = as_datetime(m_present_time))
+  
+#force both time sets to match (i.e., round to 1sec)
+igps$m_present_time <- as_datetime(floor(seconds(igps$m_present_time)))
+raw$m_present_time <- as_datetime(floor(seconds(raw$m_present_time)))
 
 glider <- raw %>%
-  #mutate(across(where(is.character), as.numeric(as.character(.))))
+  left_join(igps) %>%
   mutate(status = if_else(m_avg_depth_rate > 0, "dive", "climb")) %>%
   fill(status) %>%
   #convert from rad to degrees for some vars
@@ -22,7 +47,5 @@ glider <- raw %>%
   mutate(m_fin = m_fin * 180/pi) %>%
   mutate(c_fin = c_fin * 180/pi) %>%
   mutate(m_pitch = m_pitch * 180/pi)
-
-glider$m_present_time <- as_datetime(glider$m_present_time)
 
 saveRDS(glider, file = (paste0(missionNumber,".rds")))
