@@ -10,18 +10,30 @@
 library(tidyverse)
 library(ggplot2)
 library(shiny)
+library(leaflet)
+#library(leaflet.extras)
+library(sf)
 #library(PlotSvalbard) #devtools::install_github("MikkoVihtakari/PlotSvalbard", upgrade = "never")
 #library(patchwork)
 #library(cowplot)
 #library(Cairo)   # For nicer ggplot2 output when deployed on Linux?
 
-#setwd("C:/Users/Gymnothorax/Box/Boxcar/COT")
-#setwd("C:/Users/Gymnothorax/Documents/COT")
-
-fileList <- list.files(path = ".",
+fileList <- list.files(path = "./Data/",
            pattern = "*.rds")
 
-#load("M120.RData")
+missionList <- str_remove(fileList, pattern = ".rds")
+
+icon.start <- makeAwesomeIcon(
+  icon = "flag", markerColor = "green",
+  library = "fa",
+  iconColor = "black"
+)
+
+icon.end <- makeAwesomeIcon(
+  icon = "flag", markerColor = "red",
+  library = "fa",
+  iconColor = "black"
+)
 
 #https://rdrr.io/github/AustralianAntarcticDivision/ZooScatR/src/R/soundvelocity.R
 c_Coppens1981 <- function(D,S,T){
@@ -54,7 +66,7 @@ wellPanel(
       selectInput(
         "mission",
         "Which mission data to display",
-        choices = c(fileList),
+        choices = c(missionList),
         selected =  NULL
       ),
     #parameter input row
@@ -104,6 +116,10 @@ actionButton("initialize", "Visualize", icon("plane"),
              style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
     #science variable settings
     tabsetPanel(
+      tabPanel("Map",
+               fluidRow(
+                 leafletOutput("missionmap")
+               ), ),
       tabPanel("Science Data",
                 fluidRow(
       column(
@@ -141,9 +157,11 @@ actionButton("initialize", "Visualize", icon("plane"),
                     #     selected = c("m_roll")
                     #   )
                     # )),
-             checkboxGroupInput("flight_var",
+             selectizeInput("flight_var",
                                 "Which flight variable(s) to display",
-                                choices = NULL))),
+                                choices = NULL,
+                            multiple = TRUE,
+                            options = list(plugins= list('remove_button'))))),
              column(
                9,
                h4("Brush and double-click to zoom (double-click again to reset)"),
@@ -177,7 +195,9 @@ actionButton("initialize", "Visualize", icon("plane"),
                     )),
              column(9,
                     plotOutput("soundplot"))
-           ), ))
+           ), ),
+  #sound velocity tab
+)
 )
 
 # Define server logic
@@ -186,7 +206,7 @@ server <- function(input, output, session) {
     #glider = readRDS(fileList[1])
   glider = reactive({
     #req(input$mission)
-    readRDS(input$mission)
+    readRDS(paste0("./Data/", input$mission, ".rds"))
   })
     
   observeEvent(input$load, {
@@ -204,8 +224,40 @@ server <- function(input, output, session) {
   updateDateInput(session, "date1", NULL, min = min(glider()$m_present_time), max = max(glider()$m_present_time), value = min(glider()$m_present_time))
   updateDateInput(session, "date2", NULL, min = min(glider()$m_present_time), max = max(glider()$m_present_time), value = max(glider()$m_present_time))
   updateSelectInput(session, "display_var", NULL, choices = c(scivars))
-  updateCheckboxGroupInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
+  updateSelectizeInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
   showNotification("Data primed", type = "message")
+  
+  KML_sf <- st_read(paste0("./KML/", input$mission, ".kml"))
+  
+  map_sf <- KML_sf[2:(nrow(KML_sf) - 1),]
+  
+  mapUp <- KML_sf %>%
+    mutate(long = st_coordinates(.)[,1],
+           lat = st_coordinates(.)[,2]) %>%
+    st_drop_geometry()
+
+  output$missionmap <- renderLeaflet({
+    leaflet() %>%
+      #addProviderTiles(providers$CartoDB.Positron) %>%
+      addProviderTiles("Esri.WorldImagery",
+                       group = "Esri.WorldImagery") %>%
+      addCircles(data = KML_sf,
+                 color = "yellow"
+      ) %>%
+      addAwesomeMarkers(
+        lat = mapUp[1, 4],
+        lng = mapUp[1, 3],
+        label = "Starting point",
+        icon = icon.start
+      ) %>%
+      addAwesomeMarkers(
+        lat = mapUp[nrow(mapUp), 4],
+        lng = mapUp[nrow(mapUp), 3],
+        label = "Ending point",
+        icon = icon.end
+      )
+  })
+  
   })
   
   
