@@ -245,19 +245,19 @@ server <- function(input, output, session) {
                        group = "Esri.WorldImagery") %>%
       addCircles(data = KML_sf,
                  color = "yellow"
-      ) %>%
-      addAwesomeMarkers(
-        lat = mapUp[1, 4],
-        lng = mapUp[1, 3],
-        label = "Starting point",
-        icon = icon.start
-      ) %>%
-      addAwesomeMarkers(
-        lat = mapUp[nrow(mapUp), 4],
-        lng = mapUp[nrow(mapUp), 3],
-        label = "Ending point",
-        icon = icon.end
       )
+      # addAwesomeMarkers(
+      #   lat = mapUp[1, 4],
+      #   lng = mapUp[1, 3],
+      #   label = "Starting point",
+      #   icon = icon.start
+      # ) %>%
+      # addAwesomeMarkers(
+      #   lat = mapUp[nrow(mapUp), 4],
+      #   lng = mapUp[nrow(mapUp), 3],
+      #   label = "Ending point",
+      #   icon = icon.end
+      # )
   })
   
   })
