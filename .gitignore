@@ -5,3 +5,5 @@
 *.Rdata
 *.ssv
 *.rds
+*.kml
+*.kmz
