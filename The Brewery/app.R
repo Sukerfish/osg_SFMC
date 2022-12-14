@@ -241,11 +241,16 @@ server <- function(input, output, session) {
 
   output$missionmap <- renderLeaflet({
     leaflet() %>%
-      #addProviderTiles(providers$CartoDB.Positron) %>%
-      addProviderTiles("Esri.WorldImagery",
+      addProviderTiles("Esri.WorldImagery", 
                        group = "Esri.WorldImagery") %>%
+      addWMSTiles('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer',
+                  layers = "0,1,2,3",
+                  options = WMSTileOptions(format = "image/png", transparent = T),
+                  attribution = "© NOAA",
+                  group = "NOAA") %>%
+      addLayersControl(baseGroups = c('NOAA', 'Esri.WorldImagery')) %>%
       addCircles(data = KML_sf,
-                 color = "yellow"
+                 color = "gold"
       )
       # addAwesomeMarkers(
       #   lat = mapUp[1, 4],
