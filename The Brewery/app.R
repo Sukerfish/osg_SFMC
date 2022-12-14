@@ -227,7 +227,8 @@ server <- function(input, output, session) {
   updateSelectizeInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
   showNotification("Data primed", type = "message")
   
-  raw_sf <- st_read(paste0("./KML/", input$mission, ".kml"))
+  raw_sf <- st_read(paste0("./KML/", input$mission, ".kml"),
+                    layer = "Surfacings")
   
   KML_sf <- st_cast(raw_sf, "POINT")
   
@@ -245,19 +246,19 @@ server <- function(input, output, session) {
                        group = "Esri.WorldImagery") %>%
       addCircles(data = KML_sf,
                  color = "yellow"
+      ) %>%
+      addAwesomeMarkers(
+        lat = mapUp[1, 4],
+        lng = mapUp[1, 3],
+        label = "Starting point",
+        icon = icon.start
+      ) %>%
+      addAwesomeMarkers(
+        lat = mapUp[nrow(mapUp), 4],
+        lng = mapUp[nrow(mapUp), 3],
+        label = "Ending point",
+        icon = icon.end
       )
-      # addAwesomeMarkers(
-      #   lat = mapUp[1, 4],
-      #   lng = mapUp[1, 3],
-      #   label = "Starting point",
-      #   icon = icon.start
-      # ) %>%
-      # addAwesomeMarkers(
-      #   lat = mapUp[nrow(mapUp), 4],
-      #   lng = mapUp[nrow(mapUp), 3],
-      #   label = "Ending point",
-      #   icon = icon.end
-      # )
   })
   
   })
