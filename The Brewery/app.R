@@ -227,7 +227,9 @@ server <- function(input, output, session) {
   updateSelectizeInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
   showNotification("Data primed", type = "message")
   
-  KML_sf <- st_read(paste0("./KML/", input$mission, ".kml"))
+  raw_sf <- st_read(paste0("./KML/", input$mission, ".kml"))
+  
+  KML_sf <- st_cast(raw_sf, "POINT")
   
   map_sf <- KML_sf[2:(nrow(KML_sf) - 1),]
   
