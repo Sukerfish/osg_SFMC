@@ -230,7 +230,8 @@ server <- function(input, output, session) {
   raw_sf <- st_read(paste0("./KML/", input$mission, ".kml"),
                     layer = "Surfacings")
   
-  KML_sf <- st_cast(raw_sf, "POINT")
+  KML_sf <- raw_sf %>%
+    select(Name)
   
   map_sf <- KML_sf[2:(nrow(KML_sf) - 1),]
   
@@ -249,21 +250,21 @@ server <- function(input, output, session) {
                   attribution = "© NOAA",
                   group = "NOAA") %>%
       addLayersControl(baseGroups = c('NOAA', 'Esri.WorldImagery')) %>%
-      addCircles(data = KML_sf,
+      addCircles(data = map_sf,
                  color = "gold"
+      ) %>%
+      addAwesomeMarkers(
+        lat = mapUp[1, 3],
+        lng = mapUp[1, 2],
+        label = "Starting point",
+        icon = icon.start
+      ) %>%
+      addAwesomeMarkers(
+        lat = mapUp[nrow(mapUp), 3],
+        lng = mapUp[nrow(mapUp), 2],
+        label = "Ending point",
+        icon = icon.end
       )
-      # addAwesomeMarkers(
-      #   lat = mapUp[1, 4],
-      #   lng = mapUp[1, 3],
-      #   label = "Starting point",
-      #   icon = icon.start
-      # ) %>%
-      # addAwesomeMarkers(
-      #   lat = mapUp[nrow(mapUp), 4],
-      #   lng = mapUp[nrow(mapUp), 3],
-      #   label = "Ending point",
-      #   icon = icon.end
-      # )
   })
   
   })
