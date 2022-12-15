@@ -251,7 +251,8 @@ server <- function(input, output, session) {
                   group = "NOAA") %>%
       addLayersControl(baseGroups = c('NOAA', 'Esri.WorldImagery')) %>%
       addCircles(data = map_sf,
-                 color = "gold"
+                 color = "gold",
+                 popup = map_sf$Name
       ) %>%
       addAwesomeMarkers(
         lat = mapUp[1, 3],
