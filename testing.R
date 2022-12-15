@@ -89,28 +89,27 @@ zunk <- chunk %>%
   
 #glider$m_present_time <- as_datetime(floor(seconds(glider$m_present_time)))
 yunk <- glider %>%
-  #filter(m_present_time >= "2022-08-15" & m_present_time < "2022-08-19") %>%
-  select(m_present_time, sci_water_pressure, m_depth, c_ballast_pumped) %>%
-  filter(m_depth > 1) %>%
-  filter(!is.nan(sci_water_pressure)) %>%
-  filter(sci_water_pressure > 0) %>%
-  mutate(check = sci_water_pressure - lead(sci_water_pressure)) %>%
-  mutate(status2 = if_else(check < 0, 1, 2)) %>%
-  mutate(check2 = abs(status2 - lead(status2))) 
-  mutate()
-  select(m_present_time, status2)
+  select(!c(status))
 
-#ballast pump delta method + max pitch ... at surface only
+#ballast pump delta method ... and max battpos for surface
 qunk <- glider %>%
-  select(m_present_time, sci_water_pressure, m_depth, c_ballast_pumped, c_battpos) %>%
+  select(m_present_time, c_ballast_pumped, c_battpos) %>%
   filter(!is.nan(c_ballast_pumped)) %>%
   filter(!is.nan(c_battpos)) %>%
-  #mutate(check == 0) %>%
-  mutate(check2 = ifelse(c_battpos == max(c_battpos, na.rm = TRUE), 1, 0)) %>%
-  #filter(surface == 1)
-
-  mutate(check = c_ballast_pumped - lead(c_ballast_pumped)) %>%
-  filter(abs(check) >= 100)
+  mutate(batt_max = ifelse(c_battpos == max(c_battpos, na.rm = TRUE), 1, 0)) %>%
+  mutate(pump_delta = c_ballast_pumped - lead(c_ballast_pumped)) %>%
+  mutate(batt_delta = c_battpos - lead(c_battpos)) %>%
+  #mutate(pump_max = ifelse(c_ballast_pumped == max(c_ballast_pumped, na.rm = TRUE), 1, 0)) %>%
+  mutate(status = ifelse(batt_delta == 0 & batt_max == 1, "surface",
+                         ifelse(pump_delta >= 100, "dive", 
+                                ifelse(pump_delta <= -100, "climb", NA)))) %>%
+  #mutate(status = ifelse(batt_delta == 0 & batt_max == 1, "surface", NA)) %>%
+  fill(status) %>%
+  select(m_present_time, status) %>%
+  full_join(yunk) %>%
+  arrange(m_present_time) %>%
+  fill(status)
+  
 
 # ts_plot(chunk %>%
 #           filter(!is.na(sci_water_temp)),
