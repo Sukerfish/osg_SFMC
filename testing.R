@@ -81,6 +81,14 @@ ec2pss <-
                                                                   y^0.5 + y + y^1.5))
   }
 
+
+
+closest<-function(xv,sv){
+  xv[which(abs(xv-sv)==min(abs(xv-sv)))] }
+
+
+
+
 #pull out science variables
 scivars <- glider %>%
   select(starts_with("sci")) %>%
