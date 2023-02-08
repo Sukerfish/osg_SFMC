@@ -14,9 +14,10 @@ navbarPage(
   )),
   tabPanel(title = "Mission Plotting",
            fluidPage(
+             column(2,
              #parameter input row
-             sidebarLayout(
-               sidebarPanel(
+             #sidebarLayout(
+               wellPanel(
                  actionButton(
                    inputId = "load",
                    label = "Load Mission Data",
@@ -66,15 +67,17 @@ navbarPage(
                    min = 0,
                    max = 1000
                  ),
-                 checkboxGroupInput(
-                   inputId = "status",
-                   label = "Dive only?",
-                   choices = c("dive" = "dive",
-                               "climb" = "climb"),
-                   selected = c("dive")
+                 # checkboxGroupInput(
+                 #   inputId = "status",
+                 #   label = "Dive only?",
+                 #   choices = c("dive" = "dive",
+                 #               "climb" = "climb"),
+                 #   selected = c("dive")
+                 # )
+               )
                  ),
-               width = 2),
-               mainPanel(#science variable settings
+             column(10,
+               #mainPanel(#science variable settings
                  tabsetPanel(
                    tabPanel(title = "Map",
                             fluidRow(leafletOutput(outputId = "missionmap")),),
@@ -92,15 +95,16 @@ navbarPage(
                                                     NULL),
                                        numericInput(inputId = "max",
                                                     label = "Sci Axis Maximum",
-                                                    NULL)
+                                                    NULL),
+                                       downloadButton('downloadSciPlot')
                                      )),
                               column(
                                 9,
                                 h4("Brush and double-click to zoom (double-click again to reset)"),
                                 plotOutput(
-                                  outputId = "sciplot",
-                                  dblclick = "sciplot_dblclick",
-                                  brush = brushOpts(id = "sciplot_brush",
+                                  outputId = "sciPlot",
+                                  dblclick = "sciPlot_dblclick",
+                                  brush = brushOpts(id = "sciPlot_brush",
                                                     resetOnNew = TRUE)
                                 )
                               )
@@ -123,15 +127,16 @@ navbarPage(
                                          choices = NULL,
                                          multiple = TRUE,
                                          options = list(plugins = list('remove_button'))
-                                       )
+                                       ),
+                                       downloadButton('downloadFliPlot')
                                      )),
                               column(
                                 9,
                                 h4("Brush and double-click to zoom (double-click again to reset)"),
                                 plotOutput(
-                                  outputId = "flightplot",
-                                  dblclick = "flightplot_dblclick",
-                                  brush = brushOpts(id = "flightplot_brush",
+                                  outputId = "fliPlot",
+                                  dblclick = "fliPlot_dblclick",
+                                  brush = brushOpts(id = "fliPlot_brush",
                                                     resetOnNew = TRUE)
                                 )
                               )
@@ -146,15 +151,17 @@ navbarPage(
                                                     NULL),
                                        numericInput(inputId = "soundmax",
                                                     label = "Sound Axis Maximum",
-                                                    NULL)
+                                                    NULL),
+                                       downloadButton('downloadSouPlot')
                                      )),
                               column(9,
-                                     plotOutput(outputId = "soundplot"))
+                                     plotOutput(outputId = "souPlot"))
                             ),),
                    selected = "Map"
-                 ),width = 10)
+                 )
              )
-           )),
+             )
+           ),
   tabPanel(title = "Data Import", ),
-  tabPanel(title = "Development"),
+  tabPanel(title = "Exploratory"),
 )

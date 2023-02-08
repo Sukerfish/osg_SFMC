@@ -1,6 +1,5 @@
 server <- function(input, output, session) {
   
-  #glider = readRDS(fileList[1])
   glider = reactive({
     #req(input$mission)
     readRDS(paste0("./Data/", input$mission, ".rds"))
@@ -22,7 +21,7 @@ server <- function(input, output, session) {
     updateDateInput(session, "date2", NULL, min = min(glider()$m_present_time), max = max(glider()$m_present_time), value = max(glider()$m_present_time))
     updateSelectInput(session, "display_var", NULL, choices = c(scivars))
     updateSelectizeInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
-    showNotification("Data primed", type = "message")
+    showNotification("Data loaded", type = "message")
     
     raw_sf <- st_read(paste0("./KML/", input$mission, ".kml"),
                       layer = "Surfacings")
@@ -67,9 +66,6 @@ server <- function(input, output, session) {
     
   })
   
-  
-  
-  
   #ranges for plot zooms
   rangefli <- reactiveValues(x = NULL, y = NULL)
   rangesci <- reactiveValues(x = NULL, y = NULL)
@@ -77,9 +73,9 @@ server <- function(input, output, session) {
   #dynamically filter out viewable area and calculate SV
   chunk <- eventReactive(input$initialize, {
     filter(glider(), m_present_time >= input$date1 & m_present_time <= input$date2) %>%
-      filter(status %in% c(input$status)) %>%
+      #filter(status %in% c(input$status)) %>%
       #filter(!(is.na(input$display_var) | is.na(m_depth))) %>%
-      filter(m_depth >= input$min_depth) %>%
+      filter(m_depth >= input$min_depth & m_depth <= input$max_depth) %>%
       mutate(osg_salinity = ec2pss(sci_water_cond*10, sci_water_temp, sci_water_pressure*10)) %>%
       mutate(soundvel1 = c_Coppens1981(m_depth,
                                        osg_salinity,
@@ -89,7 +85,7 @@ server <- function(input, output, session) {
   })
   
   #science plot
-  output$sciplot <- renderPlot({
+  gg1 <- reactive({
     ggplot(data = filter(chunk(), !is.na(.data[[input$display_var]])),#dynamically filter the sci variable of interest
            aes(x=m_present_time,
                y=m_depth,
@@ -98,7 +94,6 @@ server <- function(input, output, session) {
         aes(color = .data[[input$display_var]]),
         na.rm = TRUE
       ) +
-      ylab("Depth (m)") +
       coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
       scale_y_reverse() +
       scale_colour_viridis_c(limits = c(input$min, input$max)) +
@@ -107,12 +102,20 @@ server <- function(input, output, session) {
                  size = 0.1,
                  na.rm = TRUE
       ) +
-      theme_minimal()
+      theme_bw() +
+      labs(title = paste0(input$mission, " Science Data"),
+           y = "Depth (m)",
+           x = "Date") +
+      theme(plot.title = element_text(size = 32)) +
+      theme(axis.title = element_text(size = 16)) +
+      theme(axis.text = element_text(size = 12))
   })
   
+  output$sciPlot <- renderPlot({gg1()})
+  
   #flight plot zoom/click
-  observeEvent(input$flightplot_dblclick, {
-    brush <- input$flightplot_brush
+  observeEvent(input$fliPlot_dblclick, {
+    brush <- input$fliPlot_brush
     if (!is.null(brush)) {
       rangefli$x <- as.POSIXct(c(brush$xmin, brush$xmax), origin = "1970-01-01")
       rangefli$y <- c(brush$ymin, brush$ymax)
@@ -124,8 +127,8 @@ server <- function(input, output, session) {
   })
   
   #science plot zoom/click
-  observeEvent(input$sciplot_dblclick, {
-    brush <- input$sciplot_brush
+  observeEvent(input$sciPlot_dblclick, {
+    brush <- input$sciPlot_brush
     if (!is.null(brush)) {
       rangesci$x <- as.POSIXct(c(brush$xmin, brush$xmax), origin = "1970-01-01")
       #REVERSED RANGE DUE TO REVERSED Y see: https://github.com/tidyverse/ggplot2/issues/4021
@@ -138,7 +141,7 @@ server <- function(input, output, session) {
   })
   
   #flight plot
-  output$flightplot <- renderPlot({
+  gg2 <- reactive({
     # if (input$flight_var == "m_roll") {
     #   flightxlabel <- "roll"
     # } else if (input$flight_var == "m_heading") {
@@ -159,7 +162,12 @@ server <- function(input, output, session) {
           shape = variable)) +
       geom_point() +
       coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
-      theme_minimal()
+      theme_grey() +
+      labs(title = paste0(input$mission, " Flight Data"),
+           x = "Date") +
+      theme(plot.title = element_text(size = 32)) +
+      theme(axis.title = element_text(size = 16)) +
+      theme(axis.text = element_text(size = 12))
     
     # plotup <- list()
     # for (i in input$flight_var){
@@ -180,8 +188,10 @@ server <- function(input, output, session) {
     # wrap_plots(plotup, ncol = 1)
   })
   
+  output$fliPlot <- renderPlot({gg2()})
+  
   #sound velocity plot
-  output$soundplot <- renderPlot({
+  gg3 <- reactive({
     # create plot
     ggplot(data = filter(chunk(), !is.nan(soundvel1)),
            aes(x=m_present_time,
@@ -195,10 +205,51 @@ server <- function(input, output, session) {
                  size = 0.1,
                  na.rm = TRUE
       ) +
-      ylab("Depth (m)") +
+
       scale_y_reverse() +
-      scale_colour_viridis_c(limits = c(limits = c(input$soundmin, input$soundmax)))
+      scale_colour_viridis_c(limits = c(limits = c(input$soundmin, input$soundmax))) +
+      theme_bw() +
+      labs(title = paste0(input$mission, " Sound Velocity"),
+           caption = "Calculated using Coppens <i>et al.</i> (1981)",
+           y = "Depth (m)",
+           x = "Date") +
+      theme(plot.title = element_text(size = 32)) +
+      theme(axis.title = element_text(size = 16)) +
+      theme(axis.text = element_text(size = 12)) +
+      theme(plot.caption = element_markdown())
     
   })
+  
+  output$souPlot <- renderPlot({gg3()})
+  
+  output$downloadSciPlot <- downloadHandler(
+    filename = function(){paste(input$mission, "_sci.png")},
+    content = function(file){
+      ggsave(file,
+             gg1(),
+             width = 16,
+             height = 9)
+    }
+  )
+  
+  output$downloadFliPlot <- downloadHandler(
+    filename = function(){paste(input$mission, "_fli.png")},
+    content = function(file){
+      ggsave(file,
+             gg2(),
+             width = 16,
+             height = 9)
+    }
+  )
+  
+  output$downloadSouPlot <- downloadHandler(
+    filename = function(){paste(input$mission, "_SV.png")},
+    content = function(file){
+      ggsave(file,
+             gg3(),
+             width = 16,
+             height = 9)
+    }
+  )
   
 }
