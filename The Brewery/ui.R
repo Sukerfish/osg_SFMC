@@ -162,6 +162,29 @@ navbarPage(
              )
              )
            ),
-  tabPanel(title = "Data Import", ),
+  tabPanel(title = "Data Import", 
+           fluidPage(
+             
+                    #file upload row
+                    wellPanel(
+                      fileInput(
+                        inputId = "upload",
+                        label = "Upload New Mission Data",
+                        multiple = FALSE,
+                        accept = c("text/SSV", 
+                                   ".ssv",
+                                   ".rds",
+                                   ".Rdata",
+                                   ".*bd",
+                                   ".kml")
+                      ),
+                      tableOutput('uploadTable')
+                      # selectInput(
+                      #   inputId = "mission",
+                      #   label = "Which mission data to display",
+                      #   choices = c(missionList),
+                      #   selected =  NULL
+                      # 
+                      ),)),
   tabPanel(title = "Exploratory"),
 )

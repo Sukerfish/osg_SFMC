@@ -23,29 +23,31 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
     showNotification("Data loaded", type = "message")
     
-    raw_sf <- st_read(paste0("./KML/", input$mission, ".kml"),
-                      layer = "Surfacings")
-    
-    KML_sf <- raw_sf %>%
-      select(Name)
-    
-    map_sf <- KML_sf[2:(nrow(KML_sf) - 1),]
-    
-    mapUp <- KML_sf %>%
-      mutate(long = st_coordinates(.)[,1],
-             lat = st_coordinates(.)[,2]) %>%
-      st_drop_geometry()
-    
     output$missionmap <- renderLeaflet({
+      raw_sf <- st_read(paste0("./KML/", input$mission, ".kml"),
+                        layer = "Surfacings")
+      
+      KML_sf <- raw_sf %>%
+        select(Name)
+      
+      map_sf <- KML_sf[2:(nrow(KML_sf) - 1),]
+      
+      mapUp <- KML_sf %>%
+        mutate(long = st_coordinates(.)[,1],
+               lat = st_coordinates(.)[,2]) %>%
+        st_drop_geometry()
+      
       leaflet() %>%
+        addProviderTiles("Esri.OceanBasemap", 
+                         group = "Ocean Basemap") %>%
         addProviderTiles("Esri.WorldImagery", 
-                         group = "Esri.WorldImagery") %>%
-        addWMSTiles('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer',
-                    layers = "0,1,2,3",
-                    options = WMSTileOptions(format = "image/png", transparent = T),
-                    attribution = "© NOAA",
-                    group = "NOAA") %>%
-        addLayersControl(baseGroups = c('NOAA', 'Esri.WorldImagery')) %>%
+                         group = "World Imagery") %>%
+        # addWMSTiles('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer',
+        #             layers = "0,1,2,3",
+        #             options = WMSTileOptions(format = "image/png", transparent = T),
+        #             attribution = "© NOAA",
+        #             group = "NOAA") %>%
+        addLayersControl(baseGroups = c('Ocean Basemap', 'World Imagery')) %>%
         addCircles(data = map_sf,
                    color = "gold",
                    popup = map_sf$Name
@@ -252,4 +254,44 @@ server <- function(input, output, session) {
     }
   )
   
+  ####### File Upload/Processing #########
+  observeEvent(input$upload, {
+    #get file extension
+    ext <- tools::file_ext(input$upload$name)
+    
+    #if SSV
+    if (ext == "ssv") {
+      print("SSV!")
+      newGlider <- ssv_to_rds(inputFile = input$upload$datapath,
+                              missionNum = input$upload$name)
+      #if kml
+    } else if (ext == "kml"){
+      print("KML!")
+      file.copy(input$upload$datapath, "./KML")
+      #file.rename(f)
+    } else if (ext == "kmz"){
+      showModal(modalDialog(
+        title = "Warning",
+        ".kmz is not accepted, .kml ONLY",
+        easyClose = TRUE
+      ))
+      #otherwise, error
+    } else {
+      showModal(modalDialog(
+        title = "Warning",
+        "Please upload .ssv or .kml only",
+        easyClose = TRUE
+      ))
+    }
+    
+    #topGlider <- head(newGlider)
+    
+    #showNotification(paste0(outputName, " saved"))
+  })
+  # output$uploadTable <- renderTable({
+  #   req(input$upload)
+  #   
+  #   topGlider
+  # })
+
 }

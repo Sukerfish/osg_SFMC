@@ -10,6 +10,11 @@ library(sf)
 #library(cowplot)
 #library(Cairo)   # For nicer ggplot2 output when deployed on Linux?
 
+source("./scripts/loadSSV.R")
+
+#maximum file upload size of 500mb
+options(shiny.maxRequestSize = 2000*1024^2)
+
 fileList <- list.files(path = "./Data/",
                        pattern = "*.rds")
 
