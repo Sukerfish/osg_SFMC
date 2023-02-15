@@ -1,24 +1,33 @@
 server <- function(input, output, session) {
   
-  glider = reactive({
-    #req(input$mission)
-    readRDS(paste0("./Data/", input$mission, ".rds"))
-  })
+  # glider = reactive({
+  #   #req(input$mission)
+  #   readRDS(paste0("./Data/", input$mission, ".rds"))
+  # })
   
   observeEvent(input$load, {
+    glider <<- readRDS(paste0("./Data/", input$mission, ".rds"))
+    
     #pull out science variables
-    scivars <- glider() %>%
+    scivars <- glider %>%
       select(starts_with("sci")) %>%
       colnames()
     
     #pull out flight variables
-    flightvars <- glider() %>%
+    flightvars <- glider %>%
       select(!starts_with("sci")) %>%
       colnames()
     
+    #commit mission number to global variable upon mission selection
+    missionNum <<- input$mission
+    
+    #mission date ranges
+    startDate <- min(glider$m_present_time)
+    endDate <- max(glider$m_present_time)
+    
     #get start/end days
-    updateDateInput(session, "date1", NULL, min = min(glider()$m_present_time), max = max(glider()$m_present_time), value = min(glider()$m_present_time))
-    updateDateInput(session, "date2", NULL, min = min(glider()$m_present_time), max = max(glider()$m_present_time), value = max(glider()$m_present_time))
+    updateDateInput(session, "date1", NULL, min = min(glider$m_present_time), max = max(glider$m_present_time), value = startDate)
+    updateDateInput(session, "date2", NULL, min = min(glider$m_present_time), max = max(glider$m_present_time), value = endDate)
     updateSelectInput(session, "display_var", NULL, choices = c(scivars))
     updateSelectizeInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
     showNotification("Data loaded", type = "message")
@@ -68,13 +77,9 @@ server <- function(input, output, session) {
     
   })
   
-  #ranges for plot zooms
-  rangefli <- reactiveValues(x = NULL, y = NULL)
-  rangesci <- reactiveValues(x = NULL, y = NULL)
-  
   #dynamically filter out viewable area and calculate SV
-  chunk <- eventReactive(input$initialize, {
-    filter(glider(), m_present_time >= input$date1 & m_present_time <= input$date2) %>%
+  chunk <- reactive({
+    filter(glider, m_present_time >= input$date1 & m_present_time <= input$date2) %>%
       #filter(status %in% c(input$status)) %>%
       #filter(!(is.na(input$display_var) | is.na(m_depth))) %>%
       filter(m_depth >= input$min_depth & m_depth <= input$max_depth) %>%
@@ -85,9 +90,15 @@ server <- function(input, output, session) {
     #possible add ... from masterdata
     #mutate(new_water_depth = m_water_depth * (1500/soundvel1))
   })
+
+  
+  #ranges for plot zooms
+  rangefli <- reactiveValues(x = NULL, y = NULL)
+  rangesci <- reactiveValues(x = NULL, y = NULL)
   
   #science plot
   gg1 <- reactive({
+    req(input$load)
     ggplot(data = filter(chunk(), !is.na(.data[[input$display_var]])),#dynamically filter the sci variable of interest
            aes(x=m_present_time,
                y=m_depth,
@@ -97,6 +108,7 @@ server <- function(input, output, session) {
         na.rm = TRUE
       ) +
       coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
+      #geom_hline(yintercept = 0) +
       scale_y_reverse() +
       scale_colour_viridis_c(limits = c(input$min, input$max)) +
       geom_point(data = filter(chunk(), m_water_depth > 0),
@@ -105,7 +117,7 @@ server <- function(input, output, session) {
                  na.rm = TRUE
       ) +
       theme_bw() +
-      labs(title = paste0(input$mission, " Science Data"),
+      labs(title = paste0(missionNum, " Science Data"),
            y = "Depth (m)",
            x = "Date") +
       theme(plot.title = element_text(size = 32)) +
@@ -149,7 +161,7 @@ server <- function(input, output, session) {
     # } else if (input$flight_var == "m_heading") {
     #   flightxlabel <- "heading"
     # }
-    
+    req(input$load)
     ggplot(
       data =
         select(chunk(), m_present_time, all_of(input$flight_var)) %>%
@@ -165,7 +177,7 @@ server <- function(input, output, session) {
       geom_point() +
       coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
       theme_grey() +
-      labs(title = paste0(input$mission, " Flight Data"),
+      labs(title = paste0(missionNum, " Flight Data"),
            x = "Date") +
       theme(plot.title = element_text(size = 32)) +
       theme(axis.title = element_text(size = 16)) +
@@ -194,6 +206,7 @@ server <- function(input, output, session) {
   
   #sound velocity plot
   gg3 <- reactive({
+    req(input$load)
     # create plot
     ggplot(data = filter(chunk(), !is.nan(soundvel1)),
            aes(x=m_present_time,
@@ -207,11 +220,11 @@ server <- function(input, output, session) {
                  size = 0.1,
                  na.rm = TRUE
       ) +
-
+      #geom_hline(yintercept = 0) +
       scale_y_reverse() +
       scale_colour_viridis_c(limits = c(limits = c(input$soundmin, input$soundmax))) +
       theme_bw() +
-      labs(title = paste0(input$mission, " Sound Velocity"),
+      labs(title = paste0(missionNum, " Sound Velocity"),
            caption = "Calculated using Coppens <i>et al.</i> (1981)",
            y = "Depth (m)",
            x = "Date") +

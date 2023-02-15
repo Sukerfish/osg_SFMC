@@ -13,15 +13,15 @@ navbarPage(
     )
   )),
   tabPanel(title = "Mission Plotting",
-           fluidPage(
+           fillPage(
              column(2,
              #parameter input row
              #sidebarLayout(
-               wellPanel(
+               wellPanel(h4("Mission Selection"),
                  actionButton(
                    inputId = "load",
                    label = "Load Mission Data",
-                   icon("arrows-rotate"),
+                   icon("plane"),
                    style =
                      "color: #fff; background-color: #963ab7; border-color: #2e6da4"
                  ),
@@ -30,13 +30,14 @@ navbarPage(
                    label = "Which mission data to display",
                    choices = c(missionList),
                    selected =  NULL
-                 ),
-                 actionButton(
-                   inputId = "initialize",
-                   label = "Visualize",
-                   icon("plane"),
-                   style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"
-                 ),
+                 )),
+             wellPanel(h4("Data Filtering"),
+                 # actionButton(
+                 #   inputId = "initialize",
+                 #   label = "Visualize",
+                 #   icon("arrows-rotate"),
+                 #   style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"
+                 # ),
                  dateInput(
                    inputId = "date1",
                    label = "Start Date:",
@@ -80,9 +81,9 @@ navbarPage(
                #mainPanel(#science variable settings
                  tabsetPanel(
                    tabPanel(title = "Map",
-                            fluidRow(leafletOutput(outputId = "missionmap")),),
+                            leafletOutput(outputId = "missionmap",
+                                          height = "800px")),
                    tabPanel(title = "Science Data",
-                            fluidRow(
                               column(3,
                                      wellPanel(
                                        selectInput(
@@ -90,6 +91,7 @@ navbarPage(
                                          label = "Which science variable to display",
                                          choices = NULL
                                        ),
+                                       h4("Color Scale Override"),
                                        numericInput(inputId = "min",
                                                     label = "Sci Axis Minimum",
                                                     NULL),
@@ -105,10 +107,11 @@ navbarPage(
                                   outputId = "sciPlot",
                                   dblclick = "sciPlot_dblclick",
                                   brush = brushOpts(id = "sciPlot_brush",
-                                                    resetOnNew = TRUE)
+                                                    resetOnNew = TRUE),
+                                  height = "600px"
                                 )
                               )
-                            )),
+                            ),
                    #flight variable settings
                    tabPanel(title = "Flight Data",
                             fluidRow(
@@ -137,7 +140,8 @@ navbarPage(
                                   outputId = "fliPlot",
                                   dblclick = "fliPlot_dblclick",
                                   brush = brushOpts(id = "fliPlot_brush",
-                                                    resetOnNew = TRUE)
+                                                    resetOnNew = TRUE),
+                                  height = "600px"
                                 )
                               )
                             )),
@@ -155,7 +159,10 @@ navbarPage(
                                        downloadButton('downloadSouPlot')
                                      )),
                               column(9,
-                                     plotOutput(outputId = "souPlot"))
+                                     plotOutput(outputId = "souPlot",
+                                                height = "600px"
+                                                )
+                                     )
                             ),),
                    selected = "Map"
                  )
