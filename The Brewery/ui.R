@@ -131,7 +131,8 @@ navbarPage(
                                          multiple = TRUE,
                                          options = list(plugins = list('remove_button'))
                                        ),
-                                       downloadButton('downloadFliPlot')
+                                       downloadButton('downloadFliPlot'),
+                                       verbatimTextOutput("summary")
                                      )),
                               column(
                                 9,

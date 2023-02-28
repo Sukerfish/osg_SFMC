@@ -6,7 +6,14 @@ server <- function(input, output, session) {
   # })
   
   observeEvent(input$load, {
-    glider <<- readRDS(paste0("./Data/", input$mission, ".rds"))
+    #on load, globally save glider df and add salinty + SV
+    glider <<- readRDS(paste0("./Data/", input$mission, ".rds")) %>%
+      mutate(osg_salinity = ec2pss(sci_water_cond*10, sci_water_temp, sci_water_pressure*10)) %>%
+      mutate(soundvel1 = c_Coppens1981(m_depth,
+                                       osg_salinity,
+                                       sci_water_temp))
+    #possible add ... from masterdata
+    #mutate(new_water_depth = m_water_depth * (1500/soundvel1))
     
     #pull out science variables
     scivars <- glider %>%
@@ -21,52 +28,56 @@ server <- function(input, output, session) {
     #commit mission number to global variable upon mission selection
     missionNum <<- input$mission
     
-    #mission date ranges
+    #mission date range variables
     startDate <- min(glider$m_present_time)
     endDate <- max(glider$m_present_time)
     
-    #get start/end days
+    #get start/end days and update data filters
     updateDateInput(session, "date1", NULL, min = min(glider$m_present_time), max = max(glider$m_present_time), value = startDate)
     updateDateInput(session, "date2", NULL, min = min(glider$m_present_time), max = max(glider$m_present_time), value = endDate)
     updateSelectInput(session, "display_var", NULL, choices = c(scivars))
     updateSelectizeInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
     showNotification("Data loaded", type = "message")
     
+    #mission map 
     output$missionmap <- renderLeaflet({
+      #grab .kml per mission number
       raw_sf <- st_read(paste0("./KML/", input$mission, ".kml"),
                         layer = "Surfacings")
       
+      #pull out only relevant portion
       KML_sf <- raw_sf %>%
-        select(Name)
+        select(Name) #timestamps
       
+      #get map from sf
       map_sf <- KML_sf[2:(nrow(KML_sf) - 1),]
       
+      #convert to long form for start/end markers later
       mapUp <- KML_sf %>%
         mutate(long = st_coordinates(.)[,1],
                lat = st_coordinates(.)[,2]) %>%
         st_drop_geometry()
       
       leaflet() %>%
+        #base provider layers
         addProviderTiles("Esri.OceanBasemap", 
                          group = "Ocean Basemap") %>%
         addProviderTiles("Esri.WorldImagery", 
                          group = "World Imagery") %>%
-        # addWMSTiles('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer',
-        #             layers = "0,1,2,3",
-        #             options = WMSTileOptions(format = "image/png", transparent = T),
-        #             attribution = "© NOAA",
-        #             group = "NOAA") %>%
         addLayersControl(baseGroups = c('Ocean Basemap', 'World Imagery')) %>%
+        #timestamps for surfacings
         addCircles(data = map_sf,
                    color = "gold",
                    popup = map_sf$Name
         ) %>%
+        #start marker
         addAwesomeMarkers(
           lat = mapUp[1, 3],
           lng = mapUp[1, 2],
           label = "Starting point",
           icon = icon.start
         ) %>%
+        #end marker
         addAwesomeMarkers(
           lat = mapUp[nrow(mapUp), 3],
           lng = mapUp[nrow(mapUp), 2],
@@ -77,29 +88,31 @@ server <- function(input, output, session) {
     
   })
   
-  #dynamically filter out viewable area and calculate SV
+  #dynamically filter for plotting
   chunk <- reactive({
     filter(glider, m_present_time >= input$date1 & m_present_time <= input$date2) %>%
       #filter(status %in% c(input$status)) %>%
       #filter(!(is.na(input$display_var) | is.na(m_depth))) %>%
-      filter(m_depth >= input$min_depth & m_depth <= input$max_depth) %>%
-      mutate(osg_salinity = ec2pss(sci_water_cond*10, sci_water_temp, sci_water_pressure*10)) %>%
-      mutate(soundvel1 = c_Coppens1981(m_depth,
-                                       osg_salinity,
-                                       sci_water_temp))
-    #possible add ... from masterdata
-    #mutate(new_water_depth = m_water_depth * (1500/soundvel1))
+      filter(m_depth >= input$min_depth & m_depth <= input$max_depth)
   })
-
   
   #ranges for plot zooms
   rangefli <- reactiveValues(x = NULL, y = NULL)
   rangesci <- reactiveValues(x = NULL, y = NULL)
   
-  #science plot
+  ########## science plot #########
+  
+  scienceChunk <- reactive({
+    req(input$load)
+
+    select(chunk(), m_present_time, m_depth, input$display_var) %>%
+      filter(!is.na(across(!c(m_present_time:m_depth))))
+  })
+  
   gg1 <- reactive({
     req(input$load)
-    ggplot(data = filter(chunk(), !is.na(.data[[input$display_var]])),#dynamically filter the sci variable of interest
+    ggplot(data = 
+             scienceChunk(),#dynamically filter the sci variable of interest
            aes(x=m_present_time,
                y=m_depth,
                z=.data[[input$display_var]])) +
@@ -127,19 +140,6 @@ server <- function(input, output, session) {
   
   output$sciPlot <- renderPlot({gg1()})
   
-  #flight plot zoom/click
-  observeEvent(input$fliPlot_dblclick, {
-    brush <- input$fliPlot_brush
-    if (!is.null(brush)) {
-      rangefli$x <- as.POSIXct(c(brush$xmin, brush$xmax), origin = "1970-01-01")
-      rangefli$y <- c(brush$ymin, brush$ymax)
-      
-    } else {
-      rangefli$x <- NULL
-      rangefli$y <- NULL
-    }
-  })
-  
   #science plot zoom/click
   observeEvent(input$sciPlot_dblclick, {
     brush <- input$sciPlot_brush
@@ -154,6 +154,22 @@ server <- function(input, output, session) {
     }
   })
   
+  ##### flight plot #####
+  
+  flightChunk <- reactive({
+    req(input$load)
+    select(chunk(), m_present_time, all_of(input$flight_var)) %>%
+      pivot_longer(
+        cols = !m_present_time,
+        names_to = "variable",
+        values_to = "count") %>%
+      filter(!is.na(count))
+  })
+  
+  # output$summary <- renderPrint({
+  #   head(flightChunk())
+  # })
+  
   #flight plot
   gg2 <- reactive({
     # if (input$flight_var == "m_roll") {
@@ -164,12 +180,7 @@ server <- function(input, output, session) {
     req(input$load)
     ggplot(
       data =
-        select(chunk(), m_present_time, all_of(input$flight_var)) %>%
-        pivot_longer(
-          cols = !m_present_time,
-          names_to = "variable",
-          values_to = "count") %>%
-        filter(!is.na(count)),
+        flightChunk(),
       aes(x = m_present_time,
           y = count,
           color = variable,
@@ -204,7 +215,21 @@ server <- function(input, output, session) {
   
   output$fliPlot <- renderPlot({gg2()})
   
-  #sound velocity plot
+  #flight plot zoom/click
+  observeEvent(input$fliPlot_dblclick, {
+    brush <- input$fliPlot_brush
+    if (!is.null(brush)) {
+      rangefli$x <- as.POSIXct(c(brush$xmin, brush$xmax), origin = "1970-01-01")
+      rangefli$y <- c(brush$ymin, brush$ymax)
+      
+    } else {
+      rangefli$x <- NULL
+      rangefli$y <- NULL
+    }
+  })
+  
+  ######### sound velocity plot ##########
+  
   gg3 <- reactive({
     req(input$load)
     # create plot
@@ -236,6 +261,9 @@ server <- function(input, output, session) {
   })
   
   output$souPlot <- renderPlot({gg3()})
+  
+  
+  ###### download handlers #########
   
   output$downloadSciPlot <- downloadHandler(
     filename = function(){paste(input$mission, "_sci.png")},
