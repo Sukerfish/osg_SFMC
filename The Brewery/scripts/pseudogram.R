@@ -1,3 +1,5 @@
+pseudogram <- function(velocitySSV, depthSSV){
+
 library(tidyverse)
 library(ggplot2)
 library(lubridate)
@@ -6,12 +8,12 @@ library(zoo)
 
 #test <- palette.echogram(Svthr = -75, Svmax = -35, col.sep = 1, scheme = "echov", visu = FALSE)
 
-raw <- read.csv("usf-stella-2023-059-1-194.ssv",
+raw <- read.csv(velocitySSV,
                 sep="", #whitespace as delimiter
                 #skip=2,
                 header = FALSE)
 
-rawDepth <- read.csv("./depths/usf-stella-2023-059-1-194.ssv",
+rawDepth <- read.csv(depthSSV,
                 sep="", #whitespace as delimiter
                 skip=17,
                 header = FALSE)
@@ -65,38 +67,9 @@ binOffset <- data.frame(name = c(binList),
                    offset = c(seq(0, (length(binList)-1)*2.5, 2.5)))
 
 #merge in ping depths and compute
-bigLong <- bigLong %>%
+bigLong <- as.data.frame(bigLong %>%
   left_join(binOffset) %>%
-  mutate(p_depth = i_depth + offset)
+  mutate(p_depth = i_depth + offset))
 
-#plot
-ggplot(data = 
-         bigLong,
-       aes(x=m_present_time,
-           y=p_depth,
-           z=value)) +
-  geom_point(
-    aes(color = value),
-    size = 4,
-    pch = 15,
-    na.rm = TRUE
-  ) +
-  #coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
-  scale_y_reverse() +
-  # scale_colour_manual(values = c(test$palette),
-  #                     breaks = c(test$breaks))
-  scale_colour_viridis_c(limits = c(min(bigLong$value), max(bigLong$value)),
-                         #option = "C"
-                         ) +
-  # geom_point(data = filter(chunk(), m_water_depth > 0),
-  #            aes(y = m_water_depth),
-  #            size = 0.1,
-  #            na.rm = TRUE
-  # ) +
-  theme_bw() +
-  labs(title = "EK",
-       y = "Depth (m)",
-       x = "Date") +
-  theme(plot.title = element_text(size = 32)) +
-  theme(axis.title = element_text(size = 16)) +
-  theme(axis.text = element_text(size = 12))
+return(bigLong)
+}
