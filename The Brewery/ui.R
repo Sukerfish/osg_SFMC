@@ -194,5 +194,22 @@ navbarPage(
                       #   selected =  NULL
                       # 
                       ),)),
-  tabPanel(title = "Exploratory"),
-)
+  tabPanel(title = "Pseudograms",
+           fluidPage(
+             column(2,
+             wellPanel(
+               selectInput(
+                 inputId = "echo",
+                 label = "Which mission data to display",
+                 choices = c(echoList),
+                 selected =  tail(echoList)
+               ))),
+             column(10,
+               plotOutput(
+                 outputId = "echoPlot",
+                 #dblclick = "fliPlot_dblclick",
+                 #brush = brushOpts(id = "fliPlot_brush",
+                 #                  resetOnNew = TRUE),
+                 #height = "600px"
+               )))
+))

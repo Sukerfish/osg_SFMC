@@ -11,6 +11,7 @@ library(sf)
 #library(Cairo)   # For nicer ggplot2 output when deployed on Linux?
 
 source("./scripts/loadSSV.R")
+source("./scripts/pseudogram.R")
 
 #maximum file upload size of 500mb
 options(shiny.maxRequestSize = 2000*1024^2)
@@ -18,7 +19,15 @@ options(shiny.maxRequestSize = 2000*1024^2)
 fileList <- list.files(path = "./Data/",
                        pattern = "*.rds")
 
+echoListraw <- list.files(path = "/echos/layers/",
+                          pattern = "*.ssv")
+
+# echoListraw <- list.files(path = "./pseudograms/velocities/",
+#                           pattern = "*.ssv")
+
 missionList <- str_remove(fileList, pattern = ".rds")
+
+echoList <- str_remove(echoListraw, pattern = ".ssv")
 
 icon.start <- makeAwesomeIcon(
   icon = "flag", markerColor = "green",

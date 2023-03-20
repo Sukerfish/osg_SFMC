@@ -335,4 +335,50 @@ server <- function(input, output, session) {
   #   topGlider
   # })
 
+  #### psuedograms ########
+  
+  
+  
+  gg4 <- reactive({
+    req(input$echo)
+    
+    ehunk <- pseudogram(paste0("/echos/layers/", input$echo, ".ssv"),
+                        paste0("/echos/depths/", input$echo, ".ssv"))
+    
+    #plot
+    ggplot(data = 
+             ehunk,
+           aes(x=m_present_time,
+               y=p_depth,
+               z=value)) +
+      # geom_tile(aes(
+      #   color = value)
+      # ) +
+      geom_point(
+        aes(color = value),
+        size = 6,
+        pch = 15,
+        na.rm = TRUE
+      ) +
+      #coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
+      scale_y_reverse() +
+      # scale_colour_manual(values = c(test$palette),
+      #                     breaks = c(test$breaks))
+      scale_colour_viridis_c(limits = c(min(ehunk$value), max(ehunk$value)),
+                             option = "C"
+      ) +
+      theme_bw() +
+      labs(#title = paste0(input$echo, " Sound Velocity"),
+           #caption = "Calculated using Coppens <i>et al.</i> (1981)",
+           y = "Depth (m)",
+           x = "Date") +
+      theme(plot.title = element_text(size = 32)) +
+      theme(axis.title = element_text(size = 16)) +
+      theme(axis.text = element_text(size = 12)) +
+      theme(plot.caption = element_markdown())
+    
+  })
+  
+  output$echoPlot <- renderPlot({gg4()})
+  
 }
