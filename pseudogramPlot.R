@@ -2,16 +2,17 @@ library(tidyverse)
 library(ggplot2)
 library(lubridate)
 library(zoo)
+library(scales)
 #library(echogram)
 
 #test <- palette.echogram(Svthr = -75, Svmax = -35, col.sep = 1, scheme = "echov", visu = FALSE)
 
-raw <- read.csv("usf-stella-2023-059-1-194.ssv",
+raw <- read.csv("./The Brewery/pseudograms/velocities/usf-stella-2023-059-1-251.ssv",
                 sep="", #whitespace as delimiter
                 #skip=2,
                 header = FALSE)
 
-rawDepth <- read.csv("./depths/usf-stella-2023-059-1-194.ssv",
+rawDepth <- read.csv("./The Brewery/pseudograms/depths/usf-stella-2023-059-1-251.ssv",
                 sep="", #whitespace as delimiter
                 skip=17,
                 header = FALSE)
@@ -80,7 +81,7 @@ ggplot(data =
   # ) +
   geom_point(
     aes(color = value),
-    size = 2,
+    size = 6,
     pch = 15,
     na.rm = TRUE
   ) +
@@ -99,7 +100,9 @@ ggplot(data =
   theme_bw() +
   labs(title = "EK",
        y = "Depth (m)",
-       x = "Date") +
+       x = "Date/Time (UTC)",
+       colour = "dB") +
   theme(plot.title = element_text(size = 32)) +
   theme(axis.title = element_text(size = 16)) +
-  theme(axis.text = element_text(size = 12))
+  theme(axis.text = element_text(size = 12)) +
+  scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M"))
