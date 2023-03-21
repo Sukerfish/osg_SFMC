@@ -39,11 +39,16 @@ depthInfo <- file.info(list.files(path = "/echos/depths/",
 depthList <- rownames(depthInfo) %>%
   basename()
 
-echoListraw <- intersect(velList, depthList)
+echoListraw <- intersect(velList, depthList) %>%
+  str_remove(pattern = ".ssv") %>%
+  enframe() %>%
+  mutate(ID = str_extract(value, "(?<=-)[0-9]*$")) %>%
+  mutate(ID = as.numeric(ID)) %>%
+  arrange(ID)
 
 missionList <- str_remove(fileList, pattern = ".rds")
 
-echoList <- str_remove(echoListraw, pattern = ".ssv")
+echoList <- echoListraw$value
 
 icon.start <- makeAwesomeIcon(
   icon = "flag", markerColor = "green",
