@@ -19,11 +19,25 @@ options(shiny.maxRequestSize = 2000*1024^2)
 fileList <- list.files(path = "./Data/",
                        pattern = "*.rds")
 
-velList <- list.files(path = "/echos/layers/",
-                      pattern = "*.ssv")
+velInfo <- file.info(list.files(path = "/echos/layers/",
+                     full.names = TRUE)) %>%
+  filter(size > 0)
 
-depthList <- list.files(path = "/echos/depths/",
-                        pattern = "*.ssv")
+# velInfo <- file.info(list.files(path = "./The Brewery/pseudograms/velocities/",
+#                                 full.names = TRUE)) %>%
+#   filter(size > 0)
+
+velList <- rownames(velInfo) %>%
+  basename()
+
+depthInfo <- file.info(list.files(path = "/echos/depths/",
+                        full.names = TRUE))
+
+# depthInfo <- file.info(list.files(path = "./The Brewery/pseudograms/depths/",
+#                                   full.names = TRUE))
+
+depthList <- rownames(depthInfo) %>%
+  basename()
 
 echoListraw <- intersect(velList, depthList)
 
