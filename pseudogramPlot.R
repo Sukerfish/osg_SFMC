@@ -1,18 +1,24 @@
 library(tidyverse)
 library(ggplot2)
-library(lubridate)
-library(zoo)
+library(shiny)
+library(leaflet)
+library(ggtext)
+#library(leaflet.extras)
+library(sf)
+#library(PlotSvalbard) #devtools::install_github("MikkoVihtakari/PlotSvalbard", upgrade = "never")
+#library(patchwork)
+#library(cowplot)
+#library(Cairo)   # For nicer ggplot2 output when deployed on Linux?
 library(scales)
-#library(echogram)
 
 #test <- palette.echogram(Svthr = -75, Svmax = -35, col.sep = 1, scheme = "echov", visu = FALSE)
 
-raw <- read.csv("./The Brewery/pseudograms/velocities/usf-stella-2023-059-1-251.ssv",
+raw <- read.csv("/echos/layers/usf-stella-2023-059-1-196.ssv",
                 sep="", #whitespace as delimiter
                 #skip=2,
                 header = FALSE)
 
-rawDepth <- read.csv("./The Brewery/pseudograms/depths/usf-stella-2023-059-1-251.ssv",
+rawDepth <- read.csv("/echos/depths/usf-stella-2023-059-1-196.ssv",
                 sep="", #whitespace as delimiter
                 skip=17,
                 header = FALSE)
@@ -68,30 +74,35 @@ binOffset <- data.frame(name = c(binList),
 #merge in ping depths and compute
 bigLong <- as.data.frame(bigLong %>%
   left_join(binOffset) %>%
-  mutate(p_depth = i_depth + offset))
+  mutate(p_depth = i_depth + offset)) %>%
+  mutate(q_depth = round(p_depth, 1))
 
 #plot
 ggplot(data = 
          bigLong,
        aes(x=m_present_time,
-           y=p_depth,
+           y=q_depth,
            z=value)) +
-  # geom_tile(aes(
-  #   color = value)
-  # ) +
-  geom_point(
-    aes(color = value),
-    size = 6,
-    pch = 15,
-    na.rm = TRUE
+  geom_tile(aes(
+    color = value,
+    size = 10)
   ) +
+  # geom_point(
+  #   aes(color = value),
+  #   size = 6,
+  #   pch = 15,
+  #   na.rm = TRUE
+  # ) +
   #coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
   scale_y_reverse() +
   # scale_colour_manual(values = c(test$palette),
   #                     breaks = c(test$breaks))
-  scale_colour_viridis_c(limits = c(min(bigLong$value), max(bigLong$value)),
-                         option = "C"
-                         ) +
+  scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
+                                     "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
+                         limits = c(-75, -35)) +
+  # scale_colour_viridis_c(limits = c(min(bigLong$value), max(bigLong$value)),
+  #                        option = "C"
+  #                        ) +
   # geom_point(data = filter(chunk(), m_water_depth > 0),
   #            aes(y = m_water_depth),
   #            size = 0.1,
@@ -102,7 +113,10 @@ ggplot(data =
        y = "Depth (m)",
        x = "Date/Time (UTC)",
        colour = "dB") +
-  theme(plot.title = element_text(size = 32)) +
-  theme(axis.title = element_text(size = 16)) +
-  theme(axis.text = element_text(size = 12)) +
+  theme(plot.title = element_text(size = 32),
+        axis.title = element_text(size = 16),
+        axis.text = element_text(size = 12),
+        legend.key = element_blank(),
+        plot.caption = element_markdown()) +
+  guides(size="none") +
   scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M"))
