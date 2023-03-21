@@ -368,14 +368,15 @@ server <- function(input, output, session) {
                              option = "C"
       ) +
       theme_bw() +
-      labs(#title = paste0(input$echo, " Sound Velocity"),
-           #caption = "Calculated using Coppens <i>et al.</i> (1981)",
+      labs(title = paste0(input$echo, " Pseudogram"),
            y = "Depth (m)",
-           x = "Date") +
+           x = "Date/Time (UTC)",
+           colour = "dB") +
       theme(plot.title = element_text(size = 32)) +
       theme(axis.title = element_text(size = 16)) +
       theme(axis.text = element_text(size = 12)) +
-      theme(plot.caption = element_markdown())
+      theme(plot.caption = element_markdown()) +
+      scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M"))
     
   })
   
