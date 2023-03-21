@@ -1,4 +1,4 @@
-pseudogram <- function(velocitySSV, depthSSV){
+pseudogram <- function(binSSV, depthSSV){
 
 library(tidyverse)
 library(ggplot2)
@@ -8,7 +8,7 @@ library(zoo)
 
 #test <- palette.echogram(Svthr = -75, Svmax = -35, col.sep = 1, scheme = "echov", visu = FALSE)
 
-raw <- read.csv(velocitySSV,
+raw <- read.csv(binSSV,
                 sep="", #whitespace as delimiter
                 #skip=2,
                 header = FALSE)
