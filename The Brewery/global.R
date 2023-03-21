@@ -17,40 +17,6 @@ source("./scripts/pseudogram.R")
 #maximum file upload size of 500mb
 options(shiny.maxRequestSize = 2000*1024^2)
 
-fileList <- list.files(path = "./Data/",
-                       pattern = "*.rds")
-
-velInfo <- file.info(list.files(path = "/echos/layers/",
-                     full.names = TRUE)) %>%
-  filter(size > 0)
-
-# velInfo <- file.info(list.files(path = "./The Brewery/pseudograms/velocities/",
-#                                 full.names = TRUE)) %>%
-#   filter(size > 0)
-
-velList <- rownames(velInfo) %>%
-  basename()
-
-depthInfo <- file.info(list.files(path = "/echos/depths/",
-                        full.names = TRUE))
-
-# depthInfo <- file.info(list.files(path = "./The Brewery/pseudograms/depths/",
-#                                   full.names = TRUE))
-
-depthList <- rownames(depthInfo) %>%
-  basename()
-
-echoListraw <- intersect(velList, depthList) %>%
-  str_remove(pattern = ".ssv") %>%
-  enframe() %>%
-  mutate(ID = str_extract(value, "(?<=-)[0-9]*$")) %>%
-  mutate(ID = as.numeric(ID)) %>%
-  arrange(ID)
-
-missionList <- str_remove(fileList, pattern = ".rds")
-
-echoList <- echoListraw$value
-
 icon.start <- makeAwesomeIcon(
   icon = "flag", markerColor = "green",
   library = "fa",
