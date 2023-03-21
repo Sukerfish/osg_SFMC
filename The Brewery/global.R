@@ -19,11 +19,13 @@ options(shiny.maxRequestSize = 2000*1024^2)
 fileList <- list.files(path = "./Data/",
                        pattern = "*.rds")
 
-echoListraw <- list.files(path = "/echos/layers/",
-                          pattern = "*.ssv")
+velList <- list.files(path = "/echos/layers/",
+                      pattern = "*.ssv")
 
-# echoListraw <- list.files(path = "./pseudograms/velocities/",
-#                           pattern = "*.ssv")
+depthList <- list.files(path = "/echos/depths/",
+                        pattern = "*.ssv")
+
+echoListraw <- intersect(velList, depthList)
 
 missionList <- str_remove(fileList, pattern = ".rds")
 
