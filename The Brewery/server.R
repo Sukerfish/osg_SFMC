@@ -386,6 +386,17 @@ server <- function(input, output, session) {
                         paste0("/echos/depths/", input$echo, ".ssv"))
   })
   
+  fullehunk <- reactive({
+    req(input$fullecho)
+    
+    elist <- list()
+    for (i in echoList) {
+      elist[[i]] <- pseudogram(paste0("/echos/layers/", i, ".ssv"),
+                       paste0("/echos/depths/", i, ".ssv"))
+    }
+    ef <- bind_rows(elist, .id = "segment")
+  })
+  
   gg4 <- reactive({
     #plot
     ggEcho <-
