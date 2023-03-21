@@ -1,9 +1,15 @@
 server <- function(input, output, session) {
-  
   # glider = reactive({
   #   #req(input$mission)
   #   readRDS(paste0("./Data/", input$mission, ".rds"))
   # })
+  
+  fileList <- list.files(path = "./Data/",
+                         pattern = "*.rds")
+  
+  missionList <- str_remove(fileList, pattern = ".rds")
+  
+  updateSelectInput(session, "mission", NULL, choices = c(missionList))
   
   observeEvent(input$load, {
     #on load, globally save glider df and add salinty + SV
@@ -295,6 +301,16 @@ server <- function(input, output, session) {
     }
   )
   
+  output$downloadEchoPlot <- downloadHandler(
+    filename = function(){paste(input$echo, "_pseudo.png")},
+    content = function(file){
+      ggsave(file,
+             gg4(),
+             width = 16,
+             height = 9)
+    }
+  )
+  
   ####### File Upload/Processing #########
   observeEvent(input$upload, {
     #get file extension
@@ -337,23 +353,53 @@ server <- function(input, output, session) {
 
   #### psuedograms ########
   
+  #color palette source:
+  #https://rdrr.io/github/hvillalo/echogram/src/R/palette.echogram.R
+  velInfo <- file.info(list.files(path = "/echos/layers/",
+                                  full.names = TRUE)) %>%
+    filter(size > 0)
   
+  velList <- rownames(velInfo) %>%
+    basename()
   
-  gg4 <- reactive({
+  depthInfo <- file.info(list.files(path = "/echos/depths/",
+                                    full.names = TRUE))
+  
+  depthList <- rownames(depthInfo) %>%
+    basename()
+  
+  echoListraw <- intersect(velList, depthList) %>%
+    str_remove(pattern = ".ssv") %>%
+    enframe() %>%
+    mutate(ID = str_extract(value, "(?<=-)[0-9]*$")) %>%
+    mutate(ID = as.numeric(ID)) %>%
+    arrange(ID)
+  
+  echoList <- echoListraw$value
+  
+  updateSelectInput(session, "echo", NULL, choices = c(echoList), selected = tail(echoList))
+  
+  ehunk <- reactive({
     req(input$echo)
     
     ehunk <- pseudogram(paste0("/echos/layers/", input$echo, ".ssv"),
                         paste0("/echos/depths/", input$echo, ".ssv"))
-    
+  })
+  
+  gg4 <- reactive({
     #plot
-    ggplot(data = 
-             ehunk,
+    ggEcho <-
+      ggplot(data = 
+             ehunk(),
            aes(x=m_present_time,
                y=p_depth,
                z=value)) +
       # geom_tile(aes(
-      #   color = value)
+      #   color = value,
+      #   size = 10
+      #   )
       # ) +
+      # coord_fixed(ratio = 3.6) +
       geom_point(
         aes(color = value),
         size = 6,
@@ -361,22 +407,40 @@ server <- function(input, output, session) {
         na.rm = TRUE
       ) +
       #coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
+      # scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
+      #                                    "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
+      #                        limits = c(-75, -35)) +
       scale_y_reverse() +
-      # scale_colour_manual(values = c(test$palette),
-      #                     breaks = c(test$breaks))
-      scale_colour_viridis_c(limits = c(min(ehunk$value), max(ehunk$value)),
-                             option = "C"
-      ) +
       theme_bw() +
       labs(title = paste0(input$echo, " Pseudogram"),
            y = "Depth (m)",
            x = "Date/Time (UTC)",
            colour = "dB") +
-      theme(plot.title = element_text(size = 32)) +
-      theme(axis.title = element_text(size = 16)) +
-      theme(axis.text = element_text(size = 12)) +
-      theme(plot.caption = element_markdown()) +
+      theme(plot.title = element_text(size = 32),
+            axis.title = element_text(size = 16),
+            axis.text = element_text(size = 12),
+            legend.key = element_blank(),
+            plot.caption = element_markdown()) +
+      guides(size="none") +
       scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M"))
+     
+    if (input$echoColor == "EK") {
+      ggEcho +
+      scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
+                                         "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
+                             limits = c(min(ehunk()$value), max(ehunk()$value)))
+    } else if (input$echoColor == "magma") {
+      ggEcho +
+      scale_colour_viridis_c(limits = c(min(ehunk()$value), max(ehunk()$value)),
+                             option = "C"
+      )
+    } else {
+      ggEcho +
+        scale_colour_viridis_c(limits = c(min(ehunk()$value), max(ehunk()$value)),
+                               option = "D"
+        )
+    }
+
     
   })
   

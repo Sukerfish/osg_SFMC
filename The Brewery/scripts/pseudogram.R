@@ -69,7 +69,8 @@ binOffset <- data.frame(name = c(binList),
 #merge in ping depths and compute
 bigLong <- as.data.frame(bigLong %>%
   left_join(binOffset) %>%
-  mutate(p_depth = i_depth + offset))
+  mutate(p_depth = i_depth + offset)) %>%
+  mutate(q_depth = round(p_depth, 1))
 
 return(bigLong)
 }

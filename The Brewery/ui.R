@@ -28,7 +28,7 @@ navbarPage(
                  selectInput(
                    inputId = "mission",
                    label = "Which mission data to display",
-                   choices = c(missionList),
+                   choices = NULL,
                    selected =  NULL
                  )),
              wellPanel(h4("Data Filtering"),
@@ -200,10 +200,18 @@ navbarPage(
              wellPanel(
                selectInput(
                  inputId = "echo",
-                 label = "Which mission data to display",
-                 choices = c(echoList),
-                 selected =  tail(echoList)
-               ))),
+                 label = "Which pseudogram to display",
+                 choices = NULL,
+                 selected =  NULL
+               ),
+               selectInput(
+                 inputId = "echoColor",
+                 label = "Color scheme",
+                 choices = c("EK", "magma", "viridis"),
+                 selected =  "magma"
+               ),
+               downloadButton('downloadEchoPlot')
+               )),
              column(10,
                plotOutput(
                  outputId = "echoPlot",
