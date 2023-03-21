@@ -9,6 +9,7 @@ library(sf)
 #library(patchwork)
 #library(cowplot)
 #library(Cairo)   # For nicer ggplot2 output when deployed on Linux?
+library(scales)
 
 source("./scripts/loadSSV.R")
 source("./scripts/pseudogram.R")
