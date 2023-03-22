@@ -13,6 +13,25 @@ library(gsw)
 
 #library(lubridate)
 
+#### yo identification #######
+
+
+# source: https://github.com/dankelley/oceanglider/blob/7d09741e73ea4c369449df73e9987518c8ddee0a/R/seaexplorer.R
+#' The numerical values for type `slocum` are as follows. (These
+#' are(defined as `m_depth_state` in the `slocum` documentation;
+#' see pages 1-24 of reference 1.)
+#' \tabular{lll}{
+#' **Name**   \tab **Value** \tab **Description**\cr
+#' `ignore`   \tab        99 \tab              - \cr
+#' `hover`    \tab         3 \tab              - \cr
+#' `climbing` \tab         2 \tab              - \cr
+#' `diving`   \tab         1 \tab              - \cr
+#' `surface`  \tab         0 \tab              - \cr
+#' `none`     \tab        -1 \tab              - \cr
+#'}
+
+
+
 # missionNumber <- "output"
 # 
 # head <- read.csv(paste0(missionNumber,".ssv"),
