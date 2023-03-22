@@ -12,7 +12,36 @@ navbarPage(
              "
     )
   )),
-  tabPanel(title = "Mission Plotting",
+  tabPanel(title = "Current Mission Data",
+           fluidPage(
+             tabsetPanel(
+               tabPanel(title = "Pseudograms",
+             column(2,
+                    wellPanel(
+                      selectInput(
+                        inputId = "echo",
+                        label = "Which pseudogram to display",
+                        choices = NULL,
+                        selected =  NULL
+                      ),
+                      selectInput(
+                        inputId = "echoColor",
+                        label = "Color scheme",
+                        choices = c("EK", "magma", "viridis"),
+                        selected =  "viridis"
+                      ),
+                      downloadButton('downloadEchoPlot')
+                    )),
+             column(10,
+                    plotOutput(
+                      outputId = "echoPlot",
+                      #dblclick = "fliPlot_dblclick",
+                      #brush = brushOpts(id = "fliPlot_brush",
+                      #                  resetOnNew = TRUE),
+                      #height = "600px"
+                    )))))
+  ),
+  tabPanel(title = "Archived Mission Data",
            fillPage(
              column(2,
              #parameter input row
@@ -194,30 +223,4 @@ navbarPage(
                       #   selected =  NULL
                       # 
                       ),)),
-  tabPanel(title = "Pseudograms",
-           fluidPage(
-             column(2,
-             wellPanel(
-               selectInput(
-                 inputId = "echo",
-                 label = "Which pseudogram to display",
-                 choices = NULL,
-                 selected =  NULL
-               ),
-               selectInput(
-                 inputId = "echoColor",
-                 label = "Color scheme",
-                 choices = c("EK", "magma", "viridis"),
-                 selected =  "magma"
-               ),
-               downloadButton('downloadEchoPlot')
-               )),
-             column(10,
-               plotOutput(
-                 outputId = "echoPlot",
-                 #dblclick = "fliPlot_dblclick",
-                 #brush = brushOpts(id = "fliPlot_brush",
-                 #                  resetOnNew = TRUE),
-                 #height = "600px"
-               )))
-))
+)

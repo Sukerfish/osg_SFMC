@@ -10,6 +10,7 @@ library(sf)
 #library(cowplot)
 #library(Cairo)   # For nicer ggplot2 output when deployed on Linux?
 library(scales)
+library(seacarb)
 
 source("./scripts/loadSSV.R")
 source("./scripts/pseudogram.R")

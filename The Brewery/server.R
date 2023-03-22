@@ -11,10 +11,58 @@ server <- function(input, output, session) {
   
   updateSelectInput(session, "mission", NULL, choices = c(missionList))
   
+  #mission map 
+  output$missionmap <- renderLeaflet({
+    #grab .kml per mission number
+    raw_sf <- st_read(paste0("./KML/", input$mission, ".kml"),
+                      layer = "Surfacings")
+    
+    #pull out only relevant portion
+    KML_sf <- raw_sf %>%
+      select(Name) #timestamps
+    
+    #get map from sf
+    map_sf <- KML_sf[2:(nrow(KML_sf) - 1),]
+    
+    #convert to long form for start/end markers later
+    mapUp <- KML_sf %>%
+      mutate(long = st_coordinates(.)[,1],
+             lat = st_coordinates(.)[,2]) %>%
+      st_drop_geometry()
+    
+    leaflet() %>%
+      #base provider layers
+      addProviderTiles("Esri.OceanBasemap", 
+                       group = "Ocean Basemap") %>%
+      addProviderTiles("Esri.WorldImagery", 
+                       group = "World Imagery") %>%
+      addLayersControl(baseGroups = c('Ocean Basemap', 'World Imagery')) %>%
+      #timestamps for surfacings
+      addCircles(data = map_sf,
+                 color = "gold",
+                 popup = map_sf$Name
+      ) %>%
+      #start marker
+      addAwesomeMarkers(
+        lat = mapUp[1, 3],
+        lng = mapUp[1, 2],
+        label = "Starting point",
+        icon = icon.start
+      ) %>%
+      #end marker
+      addAwesomeMarkers(
+        lat = mapUp[nrow(mapUp), 3],
+        lng = mapUp[nrow(mapUp), 2],
+        label = "Ending point",
+        icon = icon.end
+      )
+  })
+  
   observeEvent(input$load, {
     #on load, globally save glider df and add salinty + SV
     glider <<- readRDS(paste0("./Data/", input$mission, ".rds")) %>%
       mutate(osg_salinity = ec2pss(sci_water_cond*10, sci_water_temp, sci_water_pressure*10)) %>%
+      mutate(osg_theta = theta(osg_salinity, sci_water_temp, sci_water_pressure)) %>%
       mutate(soundvel1 = c_Coppens1981(m_depth,
                                        osg_salinity,
                                        sci_water_temp))
@@ -44,53 +92,6 @@ server <- function(input, output, session) {
     updateSelectInput(session, "display_var", NULL, choices = c(scivars))
     updateSelectizeInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
     showNotification("Data loaded", type = "message")
-    
-    #mission map 
-    output$missionmap <- renderLeaflet({
-      #grab .kml per mission number
-      raw_sf <- st_read(paste0("./KML/", input$mission, ".kml"),
-                        layer = "Surfacings")
-      
-      #pull out only relevant portion
-      KML_sf <- raw_sf %>%
-        select(Name) #timestamps
-      
-      #get map from sf
-      map_sf <- KML_sf[2:(nrow(KML_sf) - 1),]
-      
-      #convert to long form for start/end markers later
-      mapUp <- KML_sf %>%
-        mutate(long = st_coordinates(.)[,1],
-               lat = st_coordinates(.)[,2]) %>%
-        st_drop_geometry()
-      
-      leaflet() %>%
-        #base provider layers
-        addProviderTiles("Esri.OceanBasemap", 
-                         group = "Ocean Basemap") %>%
-        addProviderTiles("Esri.WorldImagery", 
-                         group = "World Imagery") %>%
-        addLayersControl(baseGroups = c('Ocean Basemap', 'World Imagery')) %>%
-        #timestamps for surfacings
-        addCircles(data = map_sf,
-                   color = "gold",
-                   popup = map_sf$Name
-        ) %>%
-        #start marker
-        addAwesomeMarkers(
-          lat = mapUp[1, 3],
-          lng = mapUp[1, 2],
-          label = "Starting point",
-          icon = icon.start
-        ) %>%
-        #end marker
-        addAwesomeMarkers(
-          lat = mapUp[nrow(mapUp), 3],
-          lng = mapUp[nrow(mapUp), 2],
-          label = "Ending point",
-          icon = icon.end
-        )
-    })
     
   })
   
@@ -386,16 +387,16 @@ server <- function(input, output, session) {
                         paste0("/echos/depths/", input$echo, ".ssv"))
   })
   
-  fullehunk <- reactive({
-    req(input$fullecho)
-    
-    elist <- list()
-    for (i in echoList) {
-      elist[[i]] <- pseudogram(paste0("/echos/layers/", i, ".ssv"),
-                       paste0("/echos/depths/", i, ".ssv"))
-    }
-    ef <- bind_rows(elist, .id = "segment")
-  })
+  # fullehunk <- reactive({
+  #   req(input$fullecho)
+  #   
+  #   elist <- list()
+  #   for (i in echoList) {
+  #     elist[[i]] <- pseudogram(paste0("/echos/layers/", i, ".ssv"),
+  #                      paste0("/echos/depths/", i, ".ssv"))
+  #   }
+  #   ef <- bind_rows(elist, .id = "segment")
+  # })
   
   gg4 <- reactive({
     #plot
