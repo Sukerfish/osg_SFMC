@@ -8,6 +8,7 @@ library(oce)
 library(ocedata)
 library(PlotSvalbard) #devtools::install_github("MikkoVihtakari/PlotSvalbard", upgrade = "never")
 library(gsw)
+library(seacarb)
 
 #library(Cairo)   # For nicer ggplot2 output when deployed on Linux
 
@@ -169,15 +170,25 @@ qunk <- glider %>%
   arrange(m_present_time) %>%
   fill(status)
   
+tunk <- chunk %>%
+  filter(m_present_time >= "2022-8-15 10:00:00" & m_present_time < "2022-8-15 14:00:00") %>%
+  mutate(osg_theta = theta(osg_salinity, sci_water_temp, sci_water_pressure))
 
-# ts_plot(chunk %>%
-#           filter(!is.na(sci_water_temp)),
-#         temp_col = "sci_water_temp",
-#         sal_col = "sci_rbrctd_salinity_00",
-#         #xlim = c(min(chunk$sci_rbrctd_salinity_00, na.rm = TRUE), max(chunk$sci_rbrctd_temperature_00, na.rm = TRUE)),
-#         #ylim = c(min(chunk$sci_rbrctd_temperature_00, na.rm = TRUE), max(chunk$sci_rbrctd_temperature_00, na.rm = TRUE)),
-#         zoom = TRUE,
-# )
+osg_tsplot <- ggplot(
+  data = filter(tunk, osg_salinity > 0),
+  aes(x=osg_salinity,
+      y=osg_theta)) +
+  geom_point()
+  
+ts_plot(filter(tunk, osg_salinity > 0),
+        temp_col = "osg_theta",
+        sal_col = "osg_salinity",
+        #xlim = c(min(chunk$sci_rbrctd_salinity_00, na.rm = TRUE), max(chunk$sci_rbrctd_temperature_00, na.rm = TRUE)),
+        #ylim = c(min(chunk$sci_rbrctd_temperature_00, na.rm = TRUE), max(chunk$sci_rbrctd_temperature_00, na.rm = TRUE)),
+        zoom = TRUE, 
+        #margin_distr = TRUE,
+        #xlim = c(32, 37),
+)
 
 plotup <- list()
 for (i in input){
@@ -225,3 +236,7 @@ ggplot(
       color = variable)
 ) +
   geom_point()
+
+
+test <- system("/echos/dbd2asc.exe -c /echos/cache /echos/tbd/usf-stella-2023-059-1-272.tbd >>", 
+               intern = TRUE)
