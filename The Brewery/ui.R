@@ -40,7 +40,37 @@ navbarPage(
                       #                  resetOnNew = TRUE),
                       #height = "600px"
                     ))),
-             tabPanel(title = "HistoPseudogram",
+             tabPanel(title = "Psuedotimegram",
+                      column(2,
+                             wellPanel(
+                               actionButton(
+                                 inputId = "fullecho2",
+                                 label = "Plot!",
+                                 #icon("boat"),
+                                 style =
+                                   "color: #fff; background-color: #963ab7; border-color: #2e6da4"
+                               ),
+                               dateRangeInput("echohistrange2", "Date range:",
+                                              start  = NULL,
+                                              end    = NULL,
+                                              min    = NULL,
+                                              max    = NULL,
+                                              format = "mm/dd/yy",
+                                              separator = " - "),
+                               sliderInput("echohour2",
+                                           "Hour:",
+                                           min = 0,  max = 24, value = c(0, 24)),
+                               downloadButton('downloadEchoHist2')
+                             )),
+                      column(10,
+                             plotOutput(
+                               outputId = "echoTime",
+                               #dblclick = "fliPlot_dblclick",
+                               #brush = brushOpts(id = "fliPlot_brush",
+                               #                  resetOnNew = TRUE),
+                               #height = "600px"
+                             ))),
+             tabPanel(title = "Histopseudogram",
                       column(2,
                              wellPanel(
                                actionButton(
