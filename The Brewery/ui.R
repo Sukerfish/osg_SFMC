@@ -45,7 +45,7 @@ navbarPage(
                              wellPanel(
                                actionButton(
                                  inputId = "fullecho",
-                                 label = "FULL ECHO",
+                                 label = "Plot!",
                                  #icon("boat"),
                                  style =
                                    "color: #fff; background-color: #963ab7; border-color: #2e6da4"
