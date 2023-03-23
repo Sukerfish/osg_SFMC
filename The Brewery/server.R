@@ -71,7 +71,7 @@ server <- function(input, output, session) {
     
     #pull out science variables
     scivars <- glider %>%
-      select(starts_with("sci")) %>%
+      select(starts_with(c("sci","osg"))) %>%
       colnames()
     
     #pull out flight variables
@@ -565,18 +565,20 @@ server <- function(input, output, session) {
       ggplot(data = plotethunk(),
              aes(x = seg_time,
                  y = r_depth,
-                 color = avgDb,
+                 colour = avgDb,
              )) +
-      geom_point(size = 4) +
+      geom_point(size = 4,
+                 pch = 15
+                 ) +
       #coord_equal() +
-      scale_color_viridis_c() +
+      #scale_color_viridis_c() +
       scale_y_reverse() +
       theme_bw() +
       labs(title = paste0("Avg dB returns (per meter) at depth from ", input$echohistrange2[1], " to ", input$echohistrange2[2]),
            y = "Depth (m)",
            #x = "Date/Time (UTC)",
-           x = "index",
-           color = "average dB") +
+           x = "Date",
+           colour = "average dB") +
       theme(plot.title = element_text(size = 32),
             axis.title = element_text(size = 16),
             axis.text = element_text(size = 12),
@@ -584,19 +586,20 @@ server <- function(input, output, session) {
             plot.caption = element_markdown()) +
       guides(size="none")
     
-    # if (input$echoColor == "magma") {
-    #   ggHist +
-    #     scale_colour_viridis_c(limits = c(min(ehunk()$value), max(ehunk()$value)),
-    #                            option = "C"
-    #     )
-    # } else {
-    #   ggHist +
-    #     scale_colour_viridis_c(limits = c(min(ehunk()$value), max(ehunk()$value)),
-    #                            option = "D"
-    #     )
-    # }
-    
-    ggEchoTime
+    if (input$echoColor2 == "EK") {
+      ggEchoTime +
+        scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
+                                           "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
+                               )
+    } else if (input$echoColor2 == "magma") {
+      ggEchoTime +
+        scale_colour_viridis_c(option = "C"
+        )
+    } else {
+      ggEchoTime +
+        scale_colour_viridis_c(option = "D"
+        )
+    }
     
   })
   

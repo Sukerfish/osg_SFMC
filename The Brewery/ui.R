@@ -60,6 +60,12 @@ navbarPage(
                                sliderInput("echohour2",
                                            "Hour:",
                                            min = 0,  max = 24, value = c(0, 24)),
+                               selectInput(
+                                 inputId = "echoColor2",
+                                 label = "Color scheme",
+                                 choices = c("EK", "magma", "viridis"),
+                                 selected =  "viridis"
+                               ),
                                downloadButton('downloadEchoHist2')
                              )),
                       column(10,
