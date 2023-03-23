@@ -39,7 +39,38 @@ navbarPage(
                       #brush = brushOpts(id = "fliPlot_brush",
                       #                  resetOnNew = TRUE),
                       #height = "600px"
-                    )))))
+                    ))),
+             tabPanel(title = "HistoPseudogram",
+                      column(2,
+                             wellPanel(
+                               actionButton(
+                                 inputId = "fullecho",
+                                 label = "FULL ECHO",
+                                 #icon("boat"),
+                                 style =
+                                   "color: #fff; background-color: #963ab7; border-color: #2e6da4"
+                               ),
+                               dateRangeInput("echohistrange", "Date range:",
+                                              start  = NULL,
+                                              end    = NULL,
+                                              min    = NULL,
+                                              max    = NULL,
+                                              format = "mm/dd/yy",
+                                              separator = " - "),
+                               sliderInput("echohour",
+                                           "Hour:",
+                                           min = 0,  max = 24, value = c(0, 24)),
+                               downloadButton('downloadEchoHist')
+                             )),
+                      column(10,
+                             plotOutput(
+                               outputId = "echoHist",
+                               #dblclick = "fliPlot_dblclick",
+                               #brush = brushOpts(id = "fliPlot_brush",
+                               #                  resetOnNew = TRUE),
+                               #height = "600px"
+                             )))
+             ))
   ),
   tabPanel(title = "Archived Mission Data",
            fillPage(

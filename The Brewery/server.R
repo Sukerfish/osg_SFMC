@@ -312,6 +312,16 @@ server <- function(input, output, session) {
     }
   )
   
+  output$downloadEchoHist <- downloadHandler(
+    filename = function(){paste(input$echo, "_pseudo.png")},
+    content = function(file){
+      ggsave(file,
+             gg5(),
+             width = 16,
+             height = 9)
+    }
+  )
+  
   ####### File Upload/Processing #########
   observeEvent(input$upload, {
     #get file extension
@@ -387,17 +397,6 @@ server <- function(input, output, session) {
                         paste0("/echos/depths/", input$echo, ".ssv"))
   })
   
-  # fullehunk <- reactive({
-  #   req(input$fullecho)
-  #   
-  #   elist <- list()
-  #   for (i in echoList) {
-  #     elist[[i]] <- pseudogram(paste0("/echos/layers/", i, ".ssv"),
-  #                      paste0("/echos/depths/", i, ".ssv"))
-  #   }
-  #   ef <- bind_rows(elist, .id = "segment")
-  # })
-  
   gg4 <- reactive({
     #plot
     ggEcho <-
@@ -457,5 +456,84 @@ server <- function(input, output, session) {
   })
   
   output$echoPlot <- renderPlot({gg4()})
+  
+  fullehunk <- reactive({
+    req(input$fullecho)
+
+    elist <- list()
+    for (i in echoList) {
+      elist[[i]] <- pseudogram(paste0("/echos/layers/", i, ".ssv"),
+                       paste0("/echos/depths/", i, ".ssv"))
+    }
+    ef <- bind_rows(elist, .id = "segment") %>%
+      mutate(r_depth = round(q_depth, 0)) %>%
+      mutate(day = day(m_present_time)) %>%
+      mutate(hour = hour(m_present_time))
+    
+    ef
+    
+  })
+  
+  observeEvent(input$fullecho, {
+    
+    updateDateRangeInput(session, "echohistrange", label = NULL, 
+                         start = (max(fullehunk()$m_present_time)-86400),
+                         end = max(fullehunk()$m_present_time), 
+                         min = min(fullehunk()$m_present_time), 
+                         max = max(fullehunk()$m_present_time))
+  })
+  
+  plotehunk <- reactive({
+    req(input$echohistrange)
+
+    pf <- filter(fullehunk(), m_present_time >= input$echohistrange[1] & m_present_time <= input$echohistrange[2]) %>%
+      filter(hour >= input$echohour[1] & hour <= input$echohour[2])
+    
+    pf
+  })
+  
+  gg5 <- reactive({
+    #plot
+    ggHist <- 
+      ggplot(data = plotehunk(),
+             aes(x = as.factor(value),
+                 y = r_depth,
+                 fill = hour,
+             )) +
+      geom_tile() +
+      #coord_equal() +
+      scale_fill_viridis_c() +
+      scale_y_reverse() +
+      theme_bw() +
+      labs(title = paste0("Frequency of Returns at Depth from ", input$echohistrange[1], " to ", input$echohistrange[2]),
+           y = "Depth (m)",
+           #x = "Date/Time (UTC)",
+           x = "dB",
+           fill = "Hour (UTC)") +
+      theme(plot.title = element_text(size = 32),
+            axis.title = element_text(size = 16),
+            axis.text = element_text(size = 12),
+            legend.key = element_blank(),
+            plot.caption = element_markdown()) +
+      guides(size="none")
+      #scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M"))
+  
+    # if (input$echoColor == "magma") {
+    #   ggHist +
+    #     scale_colour_viridis_c(limits = c(min(ehunk()$value), max(ehunk()$value)),
+    #                            option = "C"
+    #     )
+    # } else {
+    #   ggHist +
+    #     scale_colour_viridis_c(limits = c(min(ehunk()$value), max(ehunk()$value)),
+    #                            option = "D"
+    #     )
+    # }
+    
+    ggHist
+    
+  })
+  
+  output$echoHist <- renderPlot({gg5()})
   
 }
