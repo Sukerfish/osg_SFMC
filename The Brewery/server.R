@@ -4,12 +4,177 @@ server <- function(input, output, session) {
   #   readRDS(paste0("./Data/", input$mission, ".rds"))
   # })
   
-  fileList <- list.files(path = "./Data/",
+  
+  #### live mission plotting #####
+  scienceList_liveInfo <- file.info(list.files(path = "/echos/science/",
+                                    full.names = TRUE))
+  
+  scienceList_live <- rownames(scienceList_liveInfo) %>%
+    basename()
+
+  flightList_liveInfo <- file.info(list.files(path = "/echos/flight/",
+                                               full.names = TRUE))
+  
+  flightList_live <- rownames(flightList_liveInfo) %>%
+    basename()
+  
+  flightTotal <- length(flightList_live)
+  #if flightList changed ... then ... do df creation
+  
+  
+  glider_live <- reactive({
+    #req(input$fullecho | input$fullecho2)
+    
+    flist <- list()
+    slist <- list()
+    for (i in flightList_live) {
+      flist[[i]] <- ssv_to_df(paste0("/echos/flight/", i))
+    }
+    for (j in scienceList_live) {
+      slist[[j]] <- ssv_to_df(paste0("/echos/science/", j))
+    }
+    
+    fdf <- bind_rows(flist, .id = "segment")
+    
+    sdf <- bind_rows(slist, .id = "segment")
+    
+    #pull out science variables
+    scivarsLive <- sdf %>%
+      select(starts_with(c("sci"))) %>%
+      colnames()
+    
+    #pull out flight variables
+    flightvarsLive <- fdf %>%
+      select(!starts_with("sci")) %>%
+      colnames()
+    
+    #mission date range variables
+    startDateLive <- min(fdf$m_present_time)
+    endDateLive <- max(fdf$m_present_time)
+    
+    #get start/end days and update data filters
+    updateDateInput(session, "date1Live", NULL, min = min(fdf$m_present_time), max = max(fdf$m_present_time), value = startDateLive)
+    updateDateInput(session, "date2Live", NULL, min = min(fdf$m_present_time), max = max(fdf$m_present_time), value = endDateLive)
+    
+    updateSelectInput(session, "display_varLive", NULL, choices = c(scivarsLive), selected = tail(scivarsLive, 1))
+    updateSelectizeInput(session, "flight_varLive", NULL, choices = c(flightvarsLive), selected = "m_roll")
+    
+    list(science = sdf, flight = fdf)
+    
+  })
+  
+  scienceChunk_live <- reactive({
+    #req(input$date1Live)
+
+    df <- glider_live()[["science"]] %>%
+      select(c(sci_m_present_time, sci_water_pressure, input$display_varLive)) %>%
+      filter(sci_m_present_time >= input$date1Live & sci_m_present_time <= input$date2Live) %>%
+      filter(!is.na(across(!c(sci_m_present_time:sci_water_pressure))))
+    
+    df
+    
+  })
+  
+  flightChunk_live <- reactive({
+    #req(input$date1Live)
+    
+    df <- glider_live()[["flight"]] %>%
+      select(c(m_present_time, all_of(input$flight_varLive))) %>%
+      filter(m_present_time >= input$date1Live & m_present_time <= input$date2Live) %>%
+      pivot_longer(
+        cols = !m_present_time,
+        names_to = "variable",
+        values_to = "count") %>%
+      filter(!is.na(count))
+    
+    df
+    
+  })
+  
+  gg1Live <- reactive({
+    #req(input$display_varLive)
+    ggplot(data = 
+             scienceChunk_live(),#dynamically filter the sci variable of interest
+           aes(x=sci_m_present_time,
+               y=sci_water_pressure,
+               #z=.data[[input$display_varLive]],
+               colour = .data[[input$display_varLive]],
+               )) +
+      geom_point(
+        size = 3,
+        na.rm = TRUE
+      ) +
+     # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
+      #geom_hline(yintercept = 0) +
+      scale_y_reverse() +
+      scale_colour_viridis_c(limits = c(input$minLive, input$maxLive)) +
+      # geom_point(data = filter(glider_live(), m_water_depth > 0),
+      #            aes(y = m_water_depth),
+      #            size = 0.1,
+      #            na.rm = TRUE
+      # ) +
+      theme_bw() +
+      labs(#title = paste0(missionNum, " Science Data"),
+           y = "Pressure (bar)",
+           x = "Date") +
+      theme(plot.title = element_text(size = 32)) +
+      theme(axis.title = element_text(size = 16)) +
+      theme(axis.text = element_text(size = 12))
+  })
+  
+  output$sciPlotLive <- renderPlot({gg1Live()})
+  
+  #flight plot
+  gg2Live <- reactive({
+    # if (input$flight_var == "m_roll") {
+    #   flightxlabel <- "roll"
+    # } else if (input$flight_var == "m_heading") {
+    #   flightxlabel <- "heading"
+    # }
+    #req(input$load)
+    ggplot(
+      data =
+        flightChunk_live(),
+      aes(x = m_present_time,
+          y = count,
+          color = variable,
+          shape = variable)) +
+      geom_point(size = 3) +
+      #coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
+      theme_grey() +
+      labs(#title = paste0(missionNum, " Flight Data"),
+           x = "Date") +
+      theme(plot.title = element_text(size = 32)) +
+      theme(axis.title = element_text(size = 16)) +
+      theme(axis.text = element_text(size = 12))
+    
+    # plotup <- list()
+    # for (i in input$flight_var){
+    #   plotup[[i]] = ggplot(data = select(chunk(), m_present_time, all_of(i)) %>%
+    #     pivot_longer(
+    #       cols = !m_present_time,
+    #       names_to = "variable",
+    #       values_to = "count") %>%
+    #     filter(!is.na(count)),
+    #     aes(x = m_present_time,
+    #         y = count,
+    #         color = variable,
+    #         shape = variable)) +
+    #     geom_point() +
+    #     coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
+    #     theme_minimal()
+    # }
+    # wrap_plots(plotup, ncol = 1)
+  })
+  
+  output$fliPlotLive <- renderPlot({gg2Live()})
+  
+  fileList_archive <- list.files(path = "./Data/",
                          pattern = "*.rds")
   
-  missionList <- str_remove(fileList, pattern = ".rds")
+  missionList_archive <- str_remove(fileList_archive, pattern = ".rds")
   
-  updateSelectInput(session, "mission", NULL, choices = c(missionList))
+  updateSelectInput(session, "mission", NULL, choices = c(missionList_archive))
   
   #mission map 
   output$missionmap <- renderLeaflet({

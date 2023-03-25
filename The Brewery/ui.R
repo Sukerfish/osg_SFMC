@@ -15,6 +15,139 @@ navbarPage(
   tabPanel(title = "Current Mission Data",
            fluidPage(
              tabsetPanel(
+               tabPanel(title = "Piloting",
+                        column(2,
+                        wellPanel(h4("Data Filtering"),
+                                  dateInput(
+                                    inputId = "date1Live",
+                                    label = "Start Date:",
+                                    value = NULL,
+                                    min = NULL,
+                                    max = NULL,
+                                    format = "mm/dd/yy"
+                                  ),
+                                  dateInput(
+                                    inputId = "date2Live",
+                                    label = "End Date:",
+                                    value = NULL,
+                                    min = NULL,
+                                    max = NULL,
+                                    format = "mm/dd/yy"
+                                  ),
+                                  numericInput(
+                                    inputId = "min_depthLive",
+                                    label = "Depth Minimum",
+                                    value = NULL,
+                                    min = 0,
+                                    max = 1000
+                                  ),
+                                  numericInput(
+                                    inputId = "max_depthLive",
+                                    label = "Depth Maximum",
+                                    value = NULL,
+                                    min = 0,
+                                    max = 1000
+                                  ),
+                                  # checkboxGroupInput(
+                                  #   inputId = "status",
+                                  #   label = "Dive only?",
+                                  #   choices = c("dive" = "dive",
+                                  #               "climb" = "climb"),
+                                  #   selected = c("dive")
+                                  # )
+                       )),
+               column(10,
+                      #mainPanel(#science variable settings
+                      tabsetPanel(
+                        # tabPanel(title = "Map",
+                        #          leafletOutput(outputId = "missionmap",
+                        #                        height = "800px")),
+                        tabPanel(title = "Science Data",
+                                 column(3,
+                                        wellPanel(
+                                          selectInput(
+                                            inputId = "display_varLive",
+                                            label = "Which science variable to display",
+                                            choices = NULL
+                                          ),
+                                          h4("Color Scale Override"),
+                                          numericInput(inputId = "minLive",
+                                                       label = "Sci Axis Minimum",
+                                                       NULL),
+                                          numericInput(inputId = "maxLive",
+                                                       label = "Sci Axis Maximum",
+                                                       NULL),
+                                          #downloadButton('downloadSciPlot')
+                                        )),
+                                 column(
+                                   9,
+                                   # h4("Brush and double-click to zoom (double-click again to reset)"),
+                                   plotOutput(
+                                     outputId = "sciPlotLive",
+                                     # dblclick = "sciPlot_dblclick",
+                                     # brush = brushOpts(id = "sciPlot_brush",
+                                     #                   resetOnNew = TRUE),
+                                     # height = "600px"
+                                   )
+                                 )
+                        ),
+                        #flight variable settings
+                        tabPanel(title = "Flight Data",
+                                 fluidRow(
+                                   column(3,
+                                          wellPanel(
+                                            #   selectInput(
+                                            #     "flight_var",
+                                            #     "Which flight variable(s) to display",
+                                            #     choices = c(flightvars),
+                                            #     selected = c("m_roll")
+                                            #   )
+                                            # )),
+                                            selectizeInput(
+                                              inputId = "flight_varLive",
+                                              label = "Which flight variable(s) to display",
+                                              choices = NULL,
+                                              multiple = TRUE,
+                                              options = list(plugins = list('remove_button'))
+                                            ),
+                                            # downloadButton('downloadFliPlot'),
+                                            # verbatimTextOutput("summary")
+                                          )),
+                                   column(
+                                     9,
+                                     # h4("Brush and double-click to zoom (double-click again to reset)"),
+                                     plotOutput(
+                                       outputId = "fliPlotLive",
+                                       # dblclick = "fliPlot_dblclick",
+                                       # brush = brushOpts(id = "fliPlot_brush",
+                                       #                   resetOnNew = TRUE),
+                                       # height = "600px"
+                                     )
+                                   )
+                                 )),
+                        #sound velocity tab
+                        tabPanel(title = "Sound Velocity",
+                                 fluidRow(
+                                   column(3,
+                                          wellPanel(
+                                            numericInput(inputId = "soundminLive",
+                                                         label = "Sound Axis Minimum",
+                                                         NULL),
+                                            numericInput(inputId = "soundmaxLive",
+                                                         label = "Sound Axis Maximum",
+                                                         NULL),
+                                            #downloadButton('downloadSouPlot')
+                                          )),
+                                   column(9,
+                                          plotOutput(outputId = "souPlotLive",
+                                                     #height = "600px"
+                                          )
+                                   )
+                                 ),),
+                        #selected = "Map"
+                      )
+               )
+             ),
                tabPanel(title = "Pseudograms",
              column(2,
                     wellPanel(
