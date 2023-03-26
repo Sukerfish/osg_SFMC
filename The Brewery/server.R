@@ -20,10 +20,6 @@ server <- function(input, output, session) {
   
   flightTotal <- length(flightList_live)
   #if flightList changed ... then ... do df creation
-  
-  
-  glider_live <- reactive({
-    #req(input$fullecho | input$fullecho2)
     
     flist <- list()
     slist <- list()
@@ -40,12 +36,12 @@ server <- function(input, output, session) {
     
     #pull out science variables
     scivarsLive <- sdf %>%
-      select(starts_with(c("sci"))) %>%
+      select(!(c(segment))) %>%
       colnames()
     
     #pull out flight variables
     flightvarsLive <- fdf %>%
-      select(!starts_with("sci")) %>%
+      #select(!starts_with("sci")) %>%
       colnames()
     
     #mission date range variables
@@ -58,28 +54,32 @@ server <- function(input, output, session) {
     
     updateSelectInput(session, "display_varLive", NULL, choices = c(scivarsLive), selected = tail(scivarsLive, 1))
     updateSelectizeInput(session, "flight_varLive", NULL, choices = c(flightvarsLive), selected = "m_roll")
+
     
-    list(science = sdf, flight = fdf)
-    
-  })
+glider_live <- list(science = sdf, flight = fdf)
+
   
   scienceChunk_live <- reactive({
-    #req(input$date1Live)
+    req(input$display_varLive)
+    
+    startDateLive_sci <- which(abs(glider_live[["flight"]]$m_present_time-min(glider_live[["science"]]$sci_m_present_time))==min(abs(glider_live[["flight"]]$m_present_time-min(glider_live[["science"]]$sci_m_present_time))))
+    endDateLive_sci <- which(abs(glider_live[["flight"]]$m_present_time-max(glider_live[["science"]]$sci_m_present_time))==min(abs(glider_live[["flight"]]$m_present_time-max(glider_live[["science"]]$sci_m_present_time))))
 
-    df <- glider_live()[["science"]] %>%
-      select(c(sci_m_present_time, sci_water_pressure, input$display_varLive)) %>%
-      filter(sci_m_present_time >= input$date1Live & sci_m_present_time <= input$date2Live) %>%
+    qf <- glider_live[["science"]] %>%
+      dplyr::select(c(sci_m_present_time, sci_water_pressure, any_of(input$display_varLive))) %>%
+      slice(startDateLive_sci:endDateLive_sci) %>%
+      #filter(sci_m_present_time >= sci_m_present_time[startDateLive_sci] & sci_m_present_time <= sci_m_present_time[endDateLive_sci])
       filter(!is.na(across(!c(sci_m_present_time:sci_water_pressure))))
     
-    df
+    qf
     
   })
   
   flightChunk_live <- reactive({
-    #req(input$date1Live)
+    req(input$date1Live)
     
-    df <- glider_live()[["flight"]] %>%
-      select(c(m_present_time, all_of(input$flight_varLive))) %>%
+    df <- glider_live[["flight"]] %>%
+      dplyr::select(c(m_present_time, all_of(input$flight_varLive))) %>%
       filter(m_present_time >= input$date1Live & m_present_time <= input$date2Live) %>%
       pivot_longer(
         cols = !m_present_time,
@@ -92,14 +92,14 @@ server <- function(input, output, session) {
   })
   
   gg1Live <- reactive({
-    #req(input$display_varLive)
-    ggplot(data = 
-             scienceChunk_live(),#dynamically filter the sci variable of interest
-           aes(x=sci_m_present_time,
-               y=sci_water_pressure,
-               #z=.data[[input$display_varLive]],
-               colour = .data[[input$display_varLive]],
-               )) +
+    sciLive <- ggplot(
+      data = 
+        scienceChunk_live(),#dynamically filter the sci variable of interest
+      aes(x=sci_m_present_time,
+          y=sci_water_pressure,
+          #z=.data[[input$display_varLive]],
+          colour = .data[[input$display_varLive]],
+          )) +
       geom_point(
         size = 3,
         na.rm = TRUE
@@ -120,6 +120,9 @@ server <- function(input, output, session) {
       theme(plot.title = element_text(size = 32)) +
       theme(axis.title = element_text(size = 16)) +
       theme(axis.text = element_text(size = 12))
+    
+    sciLive
+    
   })
   
   output$sciPlotLive <- renderPlot({gg1Live()})
