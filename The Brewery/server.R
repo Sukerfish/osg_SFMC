@@ -7,13 +7,15 @@ server <- function(input, output, session) {
   
   #### live mission plotting #####
   scienceList_liveInfo <- file.info(list.files(path = "/echos/science/",
-                                    full.names = TRUE))
+                                    full.names = TRUE)) %>%
+    filter(size > 0)
   
   scienceList_live <- rownames(scienceList_liveInfo) %>%
     basename()
 
   flightList_liveInfo <- file.info(list.files(path = "/echos/flight/",
-                                               full.names = TRUE))
+                                               full.names = TRUE)) %>%
+    filter(size > 0)
   
   flightList_live <- rownames(flightList_liveInfo) %>%
     basename()
