@@ -34,20 +34,20 @@ navbarPage(
                                     max = NULL,
                                     format = "mm/dd/yy"
                                   ),
-                                  numericInput(
-                                    inputId = "min_depthLive",
-                                    label = "Depth Minimum",
-                                    value = NULL,
-                                    min = 0,
-                                    max = 1000
-                                  ),
-                                  numericInput(
-                                    inputId = "max_depthLive",
-                                    label = "Depth Maximum",
-                                    value = NULL,
-                                    min = 0,
-                                    max = 1000
-                                  ),
+                                  # numericInput(
+                                  #   inputId = "min_depthLive",
+                                  #   label = "Depth Minimum (bar)",
+                                  #   value = NULL,
+                                  #   min = 0,
+                                  #   max = 1000
+                                  # ),
+                                  # numericInput(
+                                  #   inputId = "max_depthLive",
+                                  #   label = "Depth Maximum (bar)",
+                                  #   value = NULL,
+                                  #   min = 0,
+                                  #   max = 1000
+                                  # ),
                                   # checkboxGroupInput(
                                   #   inputId = "status",
                                   #   label = "Dive only?",

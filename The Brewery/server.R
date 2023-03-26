@@ -71,6 +71,10 @@ glider_live <- list(science = sdf, flight = fdf)
       #filter(sci_m_present_time >= sci_m_present_time[startDateLive_sci] & sci_m_present_time <= sci_m_present_time[endDateLive_sci])
       filter(!is.na(across(!c(sci_m_present_time:sci_water_pressure))))
     
+    # if (!is.null(input$min_depthLive | input$max_depthLive)){
+    #   filter(qf, sci_water_pressure >= input$min_depthLive & sci_water_pressure <= input$max_depthLive)
+    # }
+    
     qf
     
   })
