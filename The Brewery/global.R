@@ -11,6 +11,7 @@ library(sf)
 #library(Cairo)   # For nicer ggplot2 output when deployed on Linux?
 library(scales)
 library(seacarb)
+library(shinycssloaders)
 
 source("./scripts/ssv_to_df.R")
 source("./scripts/loadSSV.R")

@@ -208,7 +208,8 @@ navbarPage(
                                #brush = brushOpts(id = "fliPlot_brush",
                                #                  resetOnNew = TRUE),
                                #height = "600px"
-                             ))),
+                             ) %>% withSpinner(color="#0dc5c1")
+                             )),
              tabPanel(title = "Histopseudogram",
                       column(2,
                              wellPanel(
@@ -238,7 +239,8 @@ navbarPage(
                                #brush = brushOpts(id = "fliPlot_brush",
                                #                  resetOnNew = TRUE),
                                #height = "600px"
-                             )))
+                             ) %>% withSpinner(color="#0dc5c1")
+                             ))
              ))
   ),
   tabPanel(title = "Archived Mission Data",
@@ -338,7 +340,7 @@ navbarPage(
                                   brush = brushOpts(id = "sciPlot_brush",
                                                     resetOnNew = TRUE),
                                   height = "600px"
-                                )
+                                ) %>% withSpinner(color="#0dc5c1")
                               )
                             ),
                    #flight variable settings
@@ -391,7 +393,7 @@ navbarPage(
                               column(9,
                                      plotOutput(outputId = "souPlot",
                                                 height = "600px"
-                                                )
+                                                ) %>% withSpinner(color="#0dc5c1")
                                      )
                             ),),
                    selected = "Map"

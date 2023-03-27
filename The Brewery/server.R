@@ -7,14 +7,14 @@ server <- function(input, output, session) {
   
   #### live mission plotting #####
   scienceList_liveInfo <- file.info(list.files(path = "/echos/science/",
-                                    full.names = TRUE)) %>%
+                                               full.names = TRUE)) %>%
     filter(size > 0)
   
   scienceList_live <- rownames(scienceList_liveInfo) %>%
     basename()
-
+  
   flightList_liveInfo <- file.info(list.files(path = "/echos/flight/",
-                                               full.names = TRUE)) %>%
+                                              full.names = TRUE)) %>%
     filter(size > 0)
   
   flightList_live <- rownames(flightList_liveInfo) %>%
@@ -22,55 +22,62 @@ server <- function(input, output, session) {
   
   flightTotal <- length(flightList_live)
   #if flightList changed ... then ... do df creation
-    
-    flist <- list()
-    slist <- list()
-    for (i in flightList_live) {
-      flist[[i]] <- ssv_to_df(paste0("/echos/flight/", i))
-    }
-    for (j in scienceList_live) {
-      slist[[j]] <- ssv_to_df(paste0("/echos/science/", j))
-    }
-    
-    fdf <- bind_rows(flist, .id = "segment")
-    
-    sdf <- bind_rows(slist, .id = "segment")
-    
-    #pull out science variables
-    scivarsLive <- sdf %>%
-      select(!(c(segment))) %>%
-      colnames()
-    
-    #pull out flight variables
-    flightvarsLive <- fdf %>%
-      #select(!starts_with("sci")) %>%
-      colnames()
-    
-    #mission date range variables
-    startDateLive <- min(fdf$m_present_time)
-    endDateLive <- max(fdf$m_present_time)
-    
-    #get start/end days and update data filters
-    updateDateInput(session, "date1Live", NULL, min = min(fdf$m_present_time), max = max(fdf$m_present_time), value = startDateLive)
-    updateDateInput(session, "date2Live", NULL, min = min(fdf$m_present_time), max = max(fdf$m_present_time), value = endDateLive)
-    
-    updateSelectInput(session, "display_varLive", NULL, choices = c(scivarsLive), selected = tail(scivarsLive, 1))
-    updateSelectizeInput(session, "flight_varLive", NULL, choices = c(flightvarsLive), selected = "m_roll")
-
-    
-glider_live <- list(science = sdf, flight = fdf)
-
+  
+  flist <- list()
+  slist <- list()
+  for (i in flightList_live) {
+    flist[[i]] <- ssv_to_df(paste0("/echos/flight/", i))
+  }
+  for (j in scienceList_live) {
+    slist[[j]] <- ssv_to_df(paste0("/echos/science/", j))
+  }
+  
+  fdf <- bind_rows(flist, .id = "segment") %>%
+    filter(m_present_time > 1677646800)
+  
+  sdf <- bind_rows(slist, .id = "segment") %>%
+    filter(sci_m_present_time > 1677646800)
+  
+  #pull out science variables
+  scivarsLive <- sdf %>%
+    select(!(c(segment))) %>%
+    colnames()
+  
+  #pull out flight variables
+  flightvarsLive <- fdf %>%
+    #select(!starts_with("sci")) %>%
+    colnames()
+  
+  #mission date range variables
+  startDateLive <- min(fdf$m_present_time)
+  endDateLive <- max(fdf$m_present_time)
+  
+  #get start/end days and update data filters
+  updateDateInput(session, "date1Live", NULL, min = min(fdf$m_present_time), max = max(fdf$m_present_time), value = startDateLive)
+  updateDateInput(session, "date2Live", NULL, min = min(fdf$m_present_time), max = max(fdf$m_present_time), value = endDateLive)
+  
+  updateSelectInput(session, "display_varLive", NULL, choices = c(scivarsLive), selected = tail(scivarsLive, 1))
+  updateSelectizeInput(session, "flight_varLive", NULL, choices = c(flightvarsLive), selected = "m_roll")
+  
+  
+  glider_live <- list(science = sdf, flight = fdf)
+  
   
   scienceChunk_live <- reactive({
     req(input$display_varLive)
     
-    startDateLive_sci <- which(abs(glider_live[["flight"]]$m_present_time-min(glider_live[["science"]]$sci_m_present_time))==min(abs(glider_live[["flight"]]$m_present_time-min(glider_live[["science"]]$sci_m_present_time))))
-    endDateLive_sci <- which(abs(glider_live[["flight"]]$m_present_time-max(glider_live[["science"]]$sci_m_present_time))==min(abs(glider_live[["flight"]]$m_present_time-max(glider_live[["science"]]$sci_m_present_time))))
-
-    qf <- glider_live[["science"]] %>%
+    scienceLive <- glider_live[["science"]] %>%
+      arrange(sci_m_present_time)
+    
+    startDateLive_sci <- which.min(abs(as.numeric(scienceLive$sci_m_present_time) - as.numeric(as.POSIXct(input$date1Live))))
+    endDateLive_sci <- which.min(abs(as.numeric(scienceLive$sci_m_present_time) - as.numeric(as.POSIXct(input$date2Live))))
+    
+    # print(startDateLive_sci)
+    # print(endDateLive_sci)
+    
+    qf <- scienceLive %>%
       dplyr::select(c(sci_m_present_time, sci_water_pressure, any_of(input$display_varLive))) %>%
       slice(startDateLive_sci:endDateLive_sci) %>%
-      #filter(sci_m_present_time >= sci_m_present_time[startDateLive_sci] & sci_m_present_time <= sci_m_present_time[endDateLive_sci])
       filter(!is.na(across(!c(sci_m_present_time:sci_water_pressure))))
     
     # if (!is.null(input$min_depthLive | input$max_depthLive)){
@@ -85,6 +92,7 @@ glider_live <- list(science = sdf, flight = fdf)
     req(input$date1Live)
     
     df <- glider_live[["flight"]] %>%
+      arrange(m_present_time) %>%
       dplyr::select(c(m_present_time, all_of(input$flight_varLive))) %>%
       filter(m_present_time >= input$date1Live & m_present_time <= input$date2Live) %>%
       pivot_longer(
@@ -105,12 +113,12 @@ glider_live <- list(science = sdf, flight = fdf)
           y=sci_water_pressure,
           #z=.data[[input$display_varLive]],
           colour = .data[[input$display_varLive]],
-          )) +
+      )) +
       geom_point(
         size = 3,
         na.rm = TRUE
       ) +
-     # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
+      # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
       #geom_hline(yintercept = 0) +
       scale_y_reverse() +
       scale_colour_viridis_c(limits = c(input$minLive, input$maxLive)) +
@@ -121,8 +129,8 @@ glider_live <- list(science = sdf, flight = fdf)
       # ) +
       theme_bw() +
       labs(#title = paste0(missionNum, " Science Data"),
-           y = "Pressure (bar)",
-           x = "Date") +
+        y = "Pressure (bar)",
+        x = "Date") +
       theme(plot.title = element_text(size = 32)) +
       theme(axis.title = element_text(size = 16)) +
       theme(axis.text = element_text(size = 12))
@@ -152,7 +160,7 @@ glider_live <- list(science = sdf, flight = fdf)
       #coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
       theme_grey() +
       labs(#title = paste0(missionNum, " Flight Data"),
-           x = "Date") +
+        x = "Date") +
       theme(plot.title = element_text(size = 32)) +
       theme(axis.title = element_text(size = 16)) +
       theme(axis.text = element_text(size = 12))
@@ -179,7 +187,7 @@ glider_live <- list(science = sdf, flight = fdf)
   output$fliPlotLive <- renderPlot({gg2Live()})
   
   fileList_archive <- list.files(path = "./Data/",
-                         pattern = "*.rds")
+                                 pattern = "*.rds")
   
   missionList_archive <- str_remove(fileList_archive, pattern = ".rds")
   
@@ -285,7 +293,7 @@ glider_live <- list(science = sdf, flight = fdf)
   
   scienceChunk <- reactive({
     req(input$load)
-
+    
     select(chunk(), m_present_time, m_depth, input$display_var) %>%
       filter(!is.na(across(!c(m_present_time:m_depth))))
   })
@@ -545,7 +553,7 @@ glider_live <- list(science = sdf, flight = fdf)
   #   
   #   topGlider
   # })
-
+  
   #### psuedograms ########
   
   #color palette source:
@@ -585,10 +593,10 @@ glider_live <- list(science = sdf, flight = fdf)
     #plot
     ggEcho <-
       ggplot(data = 
-             ehunk(),
-           aes(x=m_present_time,
-               y=p_depth,
-               z=value)) +
+               ehunk(),
+             aes(x=m_present_time,
+                 y=p_depth,
+                 z=value)) +
       # geom_tile(aes(
       #   color = value,
       #   size = 10
@@ -618,24 +626,24 @@ glider_live <- list(science = sdf, flight = fdf)
             plot.caption = element_markdown()) +
       guides(size="none") +
       scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M"))
-     
+    
     if (input$echoColor == "EK") {
       ggEcho +
-      scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
-                                         "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
-                             limits = c(min(ehunk()$value), max(ehunk()$value)))
+        scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
+                                                    "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
+                                                    limits = c(min(ehunk()$value), max(ehunk()$value)))
     } else if (input$echoColor == "magma") {
       ggEcho +
-      scale_colour_viridis_c(limits = c(min(ehunk()$value), max(ehunk()$value)),
-                             option = "C"
-      )
+        scale_colour_viridis_c(limits = c(min(ehunk()$value), max(ehunk()$value)),
+                               option = "C"
+        )
     } else {
       ggEcho +
         scale_colour_viridis_c(limits = c(min(ehunk()$value), max(ehunk()$value)),
                                option = "D"
         )
     }
-
+    
     
   })
   
@@ -643,11 +651,11 @@ glider_live <- list(science = sdf, flight = fdf)
   
   fullehunk <- reactive({
     req(input$fullecho | input$fullecho2)
-
+    
     elist <- list()
     for (i in echoList) {
       elist[[i]] <- pseudogram(paste0("/echos/layers/", i, ".ssv"),
-                       paste0("/echos/depths/", i, ".ssv"))
+                               paste0("/echos/depths/", i, ".ssv"))
     }
     ef <- bind_rows(elist, .id = "segment") %>%
       mutate(r_depth = round(q_depth, 0)) %>%
@@ -675,7 +683,7 @@ glider_live <- list(science = sdf, flight = fdf)
   
   plotehunk <- reactive({
     req(input$echohistrange)
-
+    
     pf <- filter(fullehunk(), m_present_time >= input$echohistrange[1] & m_present_time <= input$echohistrange[2]) %>%
       filter(hour >= input$echohour[1] & hour <= input$echohour[2]) %>%
       group_by(segment, r_depth) %>%
@@ -725,7 +733,7 @@ glider_live <- list(science = sdf, flight = fdf)
             legend.key = element_blank(),
             plot.caption = element_markdown()) +
       guides(size="none")
-      #scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M"))
+    #scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M"))
     
     ggHist
     
@@ -743,7 +751,7 @@ glider_live <- list(science = sdf, flight = fdf)
              )) +
       geom_point(size = 4,
                  pch = 15
-                 ) +
+      ) +
       #coord_equal() +
       #scale_color_viridis_c() +
       scale_y_reverse() +
@@ -763,8 +771,8 @@ glider_live <- list(science = sdf, flight = fdf)
     if (input$echoColor2 == "EK") {
       ggEchoTime +
         scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
-                                           "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
-                               )
+                                                    "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
+        )
     } else if (input$echoColor2 == "magma") {
       ggEchoTime +
         scale_colour_viridis_c(option = "C"
