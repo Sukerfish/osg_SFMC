@@ -669,7 +669,7 @@ server <- function(input, output, session) {
   observeEvent(input$fullecho | input$fullecho2, {
     
     updateDateRangeInput(session, "echohistrange", label = NULL, 
-                         start = (max(fullehunk()$m_present_time)-86400),
+                         start = (max(fullehunk()$m_present_time)-259200),
                          end = max(fullehunk()$m_present_time), 
                          min = min(fullehunk()$m_present_time), 
                          max = max(fullehunk()$m_present_time))
@@ -690,7 +690,11 @@ server <- function(input, output, session) {
       mutate(avgDb = mean(value)) %>%
       ungroup() %>%
       group_by(segment) %>%
-      mutate(seg_time = mean(m_present_time))
+      mutate(seg_time = mean(m_present_time)) %>%
+      ungroup() %>%
+      mutate(seg_hour = hour(seg_time)) %>%
+      mutate(cycle = case_when(seg_hour %in% c(11:23) ~ 'day',
+                               seg_hour %in% c(1:10, 24) ~ 'night'))
     
     pf
   })
@@ -704,35 +708,64 @@ server <- function(input, output, session) {
       mutate(avgDb = mean(value)) %>%
       ungroup() %>%
       group_by(segment) %>%
-      mutate(seg_time = mean(m_present_time))
+      mutate(seg_time = mean(m_present_time)) %>%
+      ungroup() %>%
+      mutate(seg_hour = hour(seg_time)) %>%
+      mutate(cycle = case_when(seg_hour %in% c(11:23) ~ 'day',
+                               seg_hour %in% c(1:10, 24) ~ 'night'))
     
     pf
   })
   
   gg5 <- reactive({
-    plot
-    ggHist <-
-      ggplot(data = plotehunk(),
-             aes(x = as.factor(value),
-                 y = r_depth,
-                 fill = hour,
-             )) +
-      geom_tile() +
-      #coord_equal() +
-      scale_fill_viridis_c() +
+    req(input$echohistrange)
+    
+    ggHist <- ggplot(data = plotehunk(),
+           aes(y = r_depth,
+           )) +
+      geom_freqpoly(aes(colour = as.factor(cycle)),
+                    binwidth = input$depthbin
+      ) +
       scale_y_reverse() +
+      facet_wrap(as.factor(plotehunk()$value),
+                 scales = "free_x",
+                 ncol = 4) + 
       theme_bw() +
-      labs(title = paste0("Frequency of Returns at Depth from ", input$echohistrange[1], " to ", input$echohistrange[2]),
+      labs(title = "Counts of Return Strength at Depth by Period",
            y = "Depth (m)",
-           #x = "Date/Time (UTC)",
-           x = "dB",
-           fill = "Hour (UTC)") +
-      theme(plot.title = element_text(size = 32),
-            axis.title = element_text(size = 16),
-            axis.text = element_text(size = 12),
-            legend.key = element_blank(),
-            plot.caption = element_markdown()) +
+           x = "Counts",
+           color = "Period",
+           caption = "Day = 1100-2300 UTC") +
+      theme(plot.title = element_text(size = 24),
+        axis.title = element_text(size = 16),
+        axis.text = element_text(size = 12),
+        legend.key = element_blank(),
+        plot.caption = element_markdown(),
+      ) +
       guides(size="none")
+    
+    # ggHist <-
+    #   ggplot(data = plotehunk(),
+    #          aes(x = as.factor(value),
+    #              y = r_depth,
+    #              fill = hour,
+    #          )) +
+    #   geom_tile() +
+    #   #coord_equal() +
+    #   scale_fill_viridis_c() +
+    #   scale_y_reverse() +
+    #   theme_bw() +
+    #   labs(title = paste0("Frequency of Returns at Depth from ", input$echohistrange[1], " to ", input$echohistrange[2]),
+    #        y = "Depth (m)",
+    #        #x = "Date/Time (UTC)",
+    #        x = "dB",
+    #        fill = "Hour (UTC)") +
+    #   theme(plot.title = element_text(size = 32),
+    #         axis.title = element_text(size = 16),
+    #         axis.text = element_text(size = 12),
+    #         legend.key = element_blank(),
+    #         plot.caption = element_markdown()) +
+    #   guides(size="none")
     #scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M"))
     
     ggHist

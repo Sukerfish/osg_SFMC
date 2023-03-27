@@ -210,7 +210,7 @@ navbarPage(
                                #height = "600px"
                              ) %>% withSpinner(color="#0dc5c1")
                              )),
-             tabPanel(title = "Histopseudogram",
+             tabPanel(title = "Frequency Polygon",
                       column(2,
                              wellPanel(
                                actionButton(
@@ -227,6 +227,13 @@ navbarPage(
                                               max    = NULL,
                                               format = "mm/dd/yy",
                                               separator = " - "),
+                               numericInput(
+                                 inputId = "depthbin",
+                                 label = "Depth Bin Size",
+                                 value = 3,
+                                 min = 1,
+                                 max = 1000
+                               ),
                                sliderInput("echohour",
                                            "Hour:",
                                            min = 0,  max = 24, value = c(0, 24)),
