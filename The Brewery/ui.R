@@ -173,7 +173,7 @@ navbarPage(
                       #                  resetOnNew = TRUE),
                       #height = "600px"
                     ))),
-             tabPanel(title = "Psuedotimegram",
+             tabPanel(title = "Pseudotimegram",
                       column(2,
                              wellPanel(
                                actionButton(
