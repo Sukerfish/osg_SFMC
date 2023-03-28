@@ -578,6 +578,8 @@ server <- function(input, output, session) {
     mutate(ID = as.numeric(ID)) %>%
     arrange(ID)
   
+  echoList <- echoListraw$value
+  
   #reactive pseudogram plot identifier for scrolling
   selectPgram <- reactiveValues(seg = NULL, id = NULL)
   
