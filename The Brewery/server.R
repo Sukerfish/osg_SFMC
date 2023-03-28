@@ -578,17 +578,26 @@ server <- function(input, output, session) {
     mutate(ID = as.numeric(ID)) %>%
     arrange(ID)
   
-  echoList <- echoListraw$value
+  #reactive pseudogram plot identifier for scrolling
+  selectPgram <- reactiveValues(seg = NULL, id = NULL)
   
-  updateSelectInput(session, "echo", NULL, choices = c(echoList), selected = tail(echoList))
+  updateSelectInput(session, "echo", NULL, choices = c(echoListraw$value), selected = tail(echoListraw$value))
   
+  #attach IDs to psuedogram plot reactives
+  observeEvent(input$echo, {
+    selectPgram$seg <- input$echo
+    selectPgram$id <- match(input$echo, echoListraw$value)
+  })
+  
+  #process the requested pseudogram
   ehunk <- reactive({
     req(input$echo)
     
-    ehunk <- pseudogram(paste0("/echos/layers/", input$echo, ".ssv"),
-                        paste0("/echos/depths/", input$echo, ".ssv"))
+    ehunk <- pseudogram(paste0("/echos/layers/", selectPgram$seg, ".ssv"),
+                        paste0("/echos/depths/", selectPgram$seg, ".ssv"))
   })
   
+  ##### main pseudogram plot ####
   gg4 <- reactive({
     #plot
     ggEcho <-
@@ -615,7 +624,7 @@ server <- function(input, output, session) {
       #                        limits = c(-75, -35)) +
       scale_y_reverse() +
       theme_bw() +
-      labs(title = paste0(input$echo, " Pseudogram"),
+      labs(title = paste0(selectPgram$seg, " Pseudogram"),
            y = "Depth (m)",
            x = "Date/Time (UTC)",
            colour = "dB") +
@@ -631,15 +640,15 @@ server <- function(input, output, session) {
       ggEcho +
         scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
                                                     "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
-                                                    limits = c(min(ehunk()$value), max(ehunk()$value)))
+                                                    limits = c(-75, -30))
     } else if (input$echoColor == "magma") {
       ggEcho +
-        scale_colour_viridis_c(limits = c(min(ehunk()$value), max(ehunk()$value)),
+        scale_colour_viridis_c(limits = c(-75, -30),
                                option = "C"
         )
     } else {
       ggEcho +
-        scale_colour_viridis_c(limits = c(min(ehunk()$value), max(ehunk()$value)),
+        scale_colour_viridis_c(limits = c(-75, -30),
                                option = "D"
         )
     }
@@ -649,6 +658,30 @@ server <- function(input, output, session) {
   
   output$echoPlot <- renderPlot({gg4()})
   
+  #### Buttons to scroll through pseudograms ####
+  observeEvent(input$oldestPgram, {
+    selectPgram$seg <- head(echoListraw$value, 1)
+    updateSelectInput(session, "echo", NULL, choices = c(echoListraw$value), selected = head(echoListraw$value, 1))
+  })
+  observeEvent(input$prevPgram, {
+    if (selectPgram$id > 1) {
+      selectPgram$id <- selectPgram$id - 1
+      updateSelectInput(session, "echo", NULL, choices = c(echoListraw$value), selected = echoListraw$value[selectPgram$id])
+    }
+  })
+  observeEvent(input$nextPgram, {
+    if (selectPgram$id < nrow(echoListraw)) {
+      selectPgram$id <- selectPgram$id + 1
+      updateSelectInput(session, "echo", NULL, choices = c(echoListraw$value), selected = echoListraw$value[selectPgram$id])
+    }
+  })
+  observeEvent(input$latestPgram, {
+    selectPgram$seg <- tail(echoListraw$value, 1)
+    updateSelectInput(session, "echo", NULL, choices = c(echoListraw$value), selected = tail(echoListraw$value, 1))
+  })
+  
+  
+  #### pseudotimegram main setup ####
   fullehunk <- reactive({
     req(input$fullecho | input$fullecho2)
     
@@ -666,6 +699,8 @@ server <- function(input, output, session) {
     
   })
   
+  
+  #### updater for pseudotimegram inputs ####
   observeEvent(input$fullecho | input$fullecho2, {
     
     updateDateRangeInput(session, "echohistrange", label = NULL, 
@@ -694,7 +729,7 @@ server <- function(input, output, session) {
       ungroup() %>%
       mutate(seg_hour = hour(seg_time)) %>%
       mutate(cycle = case_when(seg_hour %in% c(11:23) ~ 'day',
-                               seg_hour %in% c(1:10, 24) ~ 'night'))
+                               seg_hour %in% c(1:10, 24) ~ 'night')) # add day/night filter
     
     pf
   })
@@ -712,11 +747,12 @@ server <- function(input, output, session) {
       ungroup() %>%
       mutate(seg_hour = hour(seg_time)) %>%
       mutate(cycle = case_when(seg_hour %in% c(11:23) ~ 'day',
-                               seg_hour %in% c(1:10, 24) ~ 'night'))
+                               seg_hour %in% c(1:10, 24) ~ 'night')) # add day/night filter
     
     pf
   })
   
+  #### frequency polygon ####
   gg5 <- reactive({
     req(input$echohistrange)
     
@@ -774,6 +810,8 @@ server <- function(input, output, session) {
   
   output$echoHist <- renderPlot({gg5()})
   
+  
+  #### pseudotimegram ####
   gg6 <- reactive({
     
     ggEchoTime <- 
@@ -804,16 +842,18 @@ server <- function(input, output, session) {
     if (input$echoColor2 == "EK") {
       ggEchoTime +
         scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
-                                                    "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
-        )
+                                           "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
+                               limits = c(-75, -30)
+                               )
     } else if (input$echoColor2 == "magma") {
       ggEchoTime +
-        scale_colour_viridis_c(option = "C"
+        scale_colour_viridis_c(limits = c(-75, -30),
+                               option = "C"
         )
     } else {
       ggEchoTime +
-        scale_colour_viridis_c(option = "D"
-        )
+        scale_colour_viridis_c(limits = c(-75, -30),
+                               option = "D")
     }
     
   })

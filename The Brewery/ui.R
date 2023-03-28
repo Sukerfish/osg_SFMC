@@ -172,7 +172,41 @@ navbarPage(
                       #brush = brushOpts(id = "fliPlot_brush",
                       #                  resetOnNew = TRUE),
                       #height = "600px"
-                    ))),
+                    ),
+                    hr(),
+                    column(3,
+                    actionButton(
+                      inputId = "oldestPgram",
+                      label = "Oldest",
+                      #icon("boat"),
+                      style =
+                        "color: #fff; background-color: #000000; border-color: #2e6da4"
+                    ), align = "center"),
+                    column(3,
+                           actionButton(
+                             inputId = "prevPgram",
+                             label = "Previous",
+                             #icon("boat"),
+                             style =
+                               "color: #fff; background-color: #000000; border-color: #2e6da4"
+                           ), align = "center"),
+                    column(3,
+                           actionButton(
+                             inputId = "nextPgram",
+                             label = "Next",
+                             #icon("boat"),
+                             style =
+                               "color: #fff; background-color: #000000; border-color: #2e6da4"
+                           ), align = "center"),
+                    column(3,
+                    actionButton(
+                      inputId = "latestPgram",
+                      label = "Latest",
+                      #icon("boat"),
+                      style =
+                        "color: #fff; background-color: #000000; border-color: #2e6da4"
+                    ), align = "center"),
+                    )),
              tabPanel(title = "Pseudotimegram",
                       column(2,
                              wellPanel(
