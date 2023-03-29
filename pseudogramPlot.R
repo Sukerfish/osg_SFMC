@@ -79,20 +79,20 @@ bigLong <- as.data.frame(bigLong %>%
 
 #plot
 ggplot(data = 
-         bigLong,
+         ef,
        aes(x=m_present_time,
            y=q_depth,
            z=value)) +
-  geom_tile(aes(
-    color = value,
-    size = 10)
-  ) +
-  # geom_point(
-  #   aes(color = value),
-  #   size = 6,
-  #   pch = 15,
-  #   na.rm = TRUE
+  # geom_tile(aes(
+  #   color = value,
+  #   size = 10)
   # ) +
+  geom_point(
+    aes(color = value),
+    size = 6,
+    pch = 15,
+    na.rm = TRUE
+  ) +
   #coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
   scale_y_reverse() +
   # scale_colour_manual(values = c(test$palette),
@@ -119,4 +119,5 @@ ggplot(data =
         legend.key = element_blank(),
         plot.caption = element_markdown()) +
   guides(size="none") +
-  scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M"))
+  scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M")) +
+  facet_grid(. ~ segment, scales="free_x", space="free_x")
