@@ -126,20 +126,20 @@ navbarPage(
                                    )
                                  )),
                         #sound velocity tab
-                        tabPanel(title = "Sound Velocity",
+                        tabPanel(title = "Derived Data",
                                  fluidRow(
                                    column(3,
                                           wellPanel(
-                                            numericInput(inputId = "soundminLive",
-                                                         label = "Sound Axis Minimum",
+                                            selectInput(inputId = "derivedTypeLive",
+                                                         label = "Which type of plot?",
                                                          NULL),
-                                            numericInput(inputId = "soundmaxLive",
-                                                         label = "Sound Axis Maximum",
-                                                         NULL),
+                                            # numericInput(inputId = "derivedmaxLive",
+                                            #              label = "Axis Maximum",
+                                            #              NULL),
                                             #downloadButton('downloadSouPlot')
                                           )),
                                    column(9,
-                                          plotOutput(outputId = "souPlotLive",
+                                          plotOutput(outputId = "tsPlotLive",
                                                      #height = "600px"
                                           )
                                    )
@@ -285,7 +285,7 @@ navbarPage(
              ))
   ),
   tabPanel(title = "Archived Mission Data",
-           fillPage(
+           fluidPage(
              column(2,
              #parameter input row
              #sidebarLayout(
@@ -415,7 +415,7 @@ navbarPage(
                                   brush = brushOpts(id = "fliPlot_brush",
                                                     resetOnNew = TRUE),
                                   height = "600px"
-                                )
+                                ) %>% withSpinner(color="#0dc5c1")
                               )
                             )),
                    #sound velocity tab

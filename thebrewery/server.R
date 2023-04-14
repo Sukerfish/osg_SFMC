@@ -36,15 +36,30 @@ server <- function(input, output, session) {
     filter(m_present_time > 1677646800)
   
   sdf <- bind_rows(slist, .id = "segment") %>%
-    filter(sci_m_present_time > 1677646800)
+    filter(sci_m_present_time > 1677646800) %>%
+    mutate(m_present_time = sci_m_present_time)
+  
+  gliderdf <- fdf %>%
+    select(!c(segment)) %>%
+    full_join(sdf) %>%
+    #select(!c(segment)) %>%
+    arrange(m_present_time) %>%
+    mutate(osg_salinity = ec2pss(sci_water_cond*10, sci_water_temp, sci_water_pressure*10)) %>%
+    mutate(osg_theta = theta(osg_salinity, sci_water_temp, sci_water_pressure)) %>%
+    mutate(osg_rho = rho(osg_salinity, osg_theta, sci_water_pressure)) %>%
+    mutate(osg_depth = p2d(sci_water_pressure*10, lat=30)) %>%
+    mutate(osg_soundvel1 = c_Coppens1981(osg_depth,
+                                         osg_salinity,
+                                         sci_water_temp))
   
   #pull out science variables
   scivarsLive <- sdf %>%
-    select(!(c(segment))) %>%
+    select(!(c(segment, m_present_time))) %>%
     colnames()
   
   #pull out flight variables
   flightvarsLive <- fdf %>%
+    select(!(c(segment))) %>%
     #select(!starts_with("sci")) %>%
     colnames()
   
@@ -59,30 +74,26 @@ server <- function(input, output, session) {
   updateSelectInput(session, "display_varLive", NULL, choices = c(scivarsLive), selected = tail(scivarsLive, 1))
   updateSelectizeInput(session, "flight_varLive", NULL, choices = c(flightvarsLive), selected = "m_roll")
   
+  updateSelectInput(session, "derivedTypeLive", NULL, choices = c("Salinity", "Density", "SV Plot", "TS Plot"), selected = "Salinity")
   
   glider_live <- list(science = sdf, flight = fdf)
   
+  gliderChunk_live <- reactive({
+    df <- gliderdf %>%
+      filter(m_present_time >= input$date1Live & m_present_time <= input$date2Live)
+      #filter(status %in% c(input$status)) %>%
+      #filter(!(is.na(input$display_var) | is.na(m_depth))) %>%
+      #filter(m_depth >= input$min_depth & m_depth <= input$max_depth)
+    
+    df
+  })
   
   scienceChunk_live <- reactive({
     req(input$display_varLive)
     
-    scienceLive <- glider_live[["science"]] %>%
-      arrange(sci_m_present_time)
-    
-    startDateLive_sci <- which.min(abs(as.numeric(scienceLive$sci_m_present_time) - as.numeric(as.POSIXct(input$date1Live))))
-    endDateLive_sci <- which.min(abs(as.numeric(scienceLive$sci_m_present_time) - as.numeric(as.POSIXct(input$date2Live))))
-    
-    # print(startDateLive_sci)
-    # print(endDateLive_sci)
-    
-    qf <- scienceLive %>%
-      dplyr::select(c(sci_m_present_time, sci_water_pressure, any_of(input$display_varLive))) %>%
-      slice(startDateLive_sci:endDateLive_sci) %>%
-      filter(!is.na(across(!c(sci_m_present_time:sci_water_pressure))))
-    
-    # if (!is.null(input$min_depthLive | input$max_depthLive)){
-    #   filter(qf, sci_water_pressure >= input$min_depthLive & sci_water_pressure <= input$max_depthLive)
-    # }
+    qf <- gliderChunk_live() %>%
+      select(c(m_present_time, osg_depth, any_of(input$display_varLive))) %>%
+      filter(!is.na(across(!c(m_present_time:osg_depth))))
     
     qf
     
@@ -91,8 +102,7 @@ server <- function(input, output, session) {
   flightChunk_live <- reactive({
     req(input$date1Live)
     
-    df <- glider_live[["flight"]] %>%
-      arrange(m_present_time) %>%
+    df <- gliderChunk_live() %>%
       dplyr::select(c(m_present_time, all_of(input$flight_varLive))) %>%
       filter(m_present_time >= input$date1Live & m_present_time <= input$date2Live) %>%
       pivot_longer(
@@ -109,27 +119,28 @@ server <- function(input, output, session) {
     sciLive <- ggplot(
       data = 
         scienceChunk_live(),#dynamically filter the sci variable of interest
-      aes(x=sci_m_present_time,
-          y=sci_water_pressure,
+      aes(x=m_present_time,
+          y=osg_depth,
           #z=.data[[input$display_varLive]],
           colour = .data[[input$display_varLive]],
       )) +
       geom_point(
-        size = 3,
-        na.rm = TRUE
+        # size = 2,
+        # na.rm = TRUE
       ) +
       # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
       #geom_hline(yintercept = 0) +
       scale_y_reverse() +
       scale_colour_viridis_c(limits = c(input$minLive, input$maxLive)) +
-      # geom_point(data = filter(glider_live(), m_water_depth > 0),
-      #            aes(y = m_water_depth),
-      #            size = 0.1,
-      #            na.rm = TRUE
-      # ) +
+      geom_point(data = filter(gliderChunk_live(), m_water_depth > 0),
+                 aes(y = m_water_depth),
+                 size = 0.3,
+                 color = "black",
+                 na.rm = TRUE
+      ) +
       theme_bw() +
       labs(#title = paste0(missionNum, " Science Data"),
-        y = "Pressure (bar)",
+        y = "Depth (m)",
         x = "Date") +
       theme(plot.title = element_text(size = 32)) +
       theme(axis.title = element_text(size = 16)) +
@@ -156,42 +167,175 @@ server <- function(input, output, session) {
           y = count,
           color = variable,
           shape = variable)) +
-      geom_point(size = 3) +
+      geom_point() +
       #coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
-      theme_grey() +
+      theme_bw() +
       labs(#title = paste0(missionNum, " Flight Data"),
         x = "Date") +
       theme(plot.title = element_text(size = 32)) +
       theme(axis.title = element_text(size = 16)) +
       theme(axis.text = element_text(size = 12))
     
-    # plotup <- list()
-    # for (i in input$flight_var){
-    #   plotup[[i]] = ggplot(data = select(chunk(), m_present_time, all_of(i)) %>%
-    #     pivot_longer(
-    #       cols = !m_present_time,
-    #       names_to = "variable",
-    #       values_to = "count") %>%
-    #     filter(!is.na(count)),
-    #     aes(x = m_present_time,
-    #         y = count,
-    #         color = variable,
-    #         shape = variable)) +
-    #     geom_point() +
-    #     coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
-    #     theme_minimal()
-    # }
-    # wrap_plots(plotup, ncol = 1)
   })
   
   output$fliPlotLive <- renderPlot({gg2Live()})
+  
+  ##### derived Live plots #########
+  gg3Live <- reactive({
+    
+    if (input$derivedTypeLive == "TS Plot"){
+    df <- filter(gliderChunk_live(), osg_salinity > 0)
+    wf <- filter(gliderChunk_live(), m_water_depth > 0)
+    
+    plot <- 
+      ggplot(
+      data = df,
+      aes(x = osg_salinity,
+          y = osg_theta,
+          #color = ID,
+          #shape = variable
+          )) +
+      geom_point(size = 3,
+                 pch = 1) +
+      # scale_color_gradient(
+      #   low = "red",
+      #   high = "blue",
+      # ) +
+      #coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
+      theme_bw() +
+      labs(title = "TS Plot",
+        x = "Salinity",
+        y = "Potential Temperature",
+        #color = "Time",
+        #caption = "Red = older ... Blue = more recent"
+        ) +
+      theme(plot.title = element_text(size = 32),
+            axis.title = element_text(size = 16),
+            axis.text = element_text(size = 12),
+            plot.caption = element_text(size = 16),
+            legend.position ="none",
+            ) 
+    }
+    
+    if (input$derivedTypeLive == "SV Plot"){
+      df <- filter(gliderChunk_live(), osg_soundvel1 > 0)
+      wf <- filter(gliderChunk_live(), m_water_depth > 0)
+      
+      plot <- 
+        ggplot(data = df,
+               aes(x=m_present_time,
+                   y=osg_depth,
+                   #z=osg_soundvel1
+                   )) +
+        geom_point(
+          aes(color = osg_soundvel1)
+        ) +
+        #geom_hline(yintercept = 0) +
+        scale_y_reverse() +
+        scale_colour_viridis_c() +
+        geom_point(data = wf,
+                   aes(y = m_water_depth),
+                   size = 0.3,
+                   color = "black",
+                   na.rm = TRUE
+        ) +
+        theme_bw() +
+        labs(title = "Sound Velocity",
+             caption = "Calculated using Coppens <i>et al.</i> (1981)",
+             y = "Depth (m)",
+             x = "Date") +
+        theme(plot.title = element_text(size = 32)) +
+        theme(axis.title = element_text(size = 16)) +
+        theme(axis.text = element_text(size = 12)) +
+        theme(plot.caption = element_markdown())
+    }
+    
+    if (input$derivedTypeLive == "Density"){
+      df <- filter(gliderChunk_live(), osg_rho > 0)
+      wf <- filter(gliderChunk_live(), m_water_depth > 0)
+      
+      plot <- 
+        ggplot(
+        data = 
+          df,
+        aes(x=m_present_time,
+            y=osg_depth,
+            #z=.data[[input$display_varLive]],
+            colour = osg_rho,
+        )) +
+        geom_point(
+          # size = 2,
+          # na.rm = TRUE
+        ) +
+        # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
+        #geom_hline(yintercept = 0) +
+        scale_y_reverse() +
+        scale_colour_viridis_c() +
+        geom_point(data = wf,
+                   aes(y = m_water_depth),
+                   size = 0.3,
+                   color = "black",
+                   na.rm = TRUE
+        ) +
+        theme_bw() +
+        labs(title = "Density at Depth",
+          y = "Depth (m)",
+          x = "Date") +
+        theme(plot.title = element_text(size = 32)) +
+        theme(axis.title = element_text(size = 16)) +
+        theme(axis.text = element_text(size = 12))
+    }
+    
+    if (input$derivedTypeLive == "Salinity"){
+      df <- filter(gliderChunk_live(), osg_salinity > 0)
+      wf <- filter(gliderChunk_live(), m_water_depth > 0)
+      
+      plot <- 
+        ggplot(
+          data = 
+            df,
+          aes(x=m_present_time,
+              y=osg_depth,
+              #z=.data[[input$display_varLive]],
+              colour = osg_salinity,
+          )) +
+        geom_point(
+          # size = 2,
+          # na.rm = TRUE
+        ) +
+        # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
+        #geom_hline(yintercept = 0) +
+        scale_y_reverse() +
+        scale_colour_viridis_c() +
+        geom_point(data = wf,
+                   aes(y = m_water_depth),
+                   size = 0.3,
+                   color = "black",
+                   na.rm = TRUE
+        ) +
+        theme_bw() +
+        labs(title = "Salinity at Depth",
+             y = "Depth (m)",
+             x = "Date") +
+        theme(plot.title = element_text(size = 32)) +
+        theme(axis.title = element_text(size = 16)) +
+        theme(axis.text = element_text(size = 12))
+    }
+    
+    plot
+    
+  })
+  
+  output$tsPlotLive <- renderPlot({gg3Live()})
+  
+  ####### archived flight data ########
   
   fileList_archive <- list.files(path = "./Data/",
                                  pattern = "*.rds")
   
   missionList_archive <- str_remove(fileList_archive, pattern = ".rds")
   
-  updateSelectInput(session, "mission", NULL, choices = c(missionList_archive))
+  updateSelectInput(session, "mission", NULL, choices = c(missionList_archive), selected = tail(missionList_archive, 1))
   
   #mission map 
   output$missionmap <- renderLeaflet({
@@ -240,11 +384,17 @@ server <- function(input, output, session) {
       )
   })
   
-  observeEvent(input$load, {
-    #on load, globally save glider df and add salinty + SV
-    glider <<- readRDS(paste0("./Data/", input$mission, ".rds")) %>%
+  missionNum <- reactiveValues()
+  
+  glider <- reactiveValues()
+  
+observeEvent(input$load, {
+   #req(input$load)
+    #on load add salinty + SV
+    df <- readRDS(paste0("./Data/", isolate(input$mission), ".rds")) %>%
       mutate(osg_salinity = ec2pss(sci_water_cond*10, sci_water_temp, sci_water_pressure*10)) %>%
       mutate(osg_theta = theta(osg_salinity, sci_water_temp, sci_water_pressure)) %>%
+      mutate(osg_rho = rho(osg_salinity, osg_theta, sci_water_pressure)) %>%
       mutate(soundvel1 = c_Coppens1981(m_depth,
                                        osg_salinity,
                                        sci_water_temp))
@@ -252,37 +402,46 @@ server <- function(input, output, session) {
     #mutate(new_water_depth = m_water_depth * (1500/soundvel1))
     
     #pull out science variables
-    scivars <- glider %>%
+    scivars <- df %>%
       select(starts_with(c("sci","osg"))) %>%
       colnames()
     
     #pull out flight variables
-    flightvars <- glider %>%
+    flightvars <- df %>%
       select(!starts_with("sci")) %>%
       colnames()
     
-    #commit mission number to global variable upon mission selection
-    missionNum <<- input$mission
+    #commit mission number to reactive val at load
+    missionNum$id <- isolate(input$mission)
     
     #mission date range variables
-    startDate <- min(glider$m_present_time)
-    endDate <- max(glider$m_present_time)
+    startDate <- min(df$m_present_time)
+    endDate <- max(df$m_present_time)
     
     #get start/end days and update data filters
-    updateDateInput(session, "date1", NULL, min = min(glider$m_present_time), max = max(glider$m_present_time), value = startDate)
-    updateDateInput(session, "date2", NULL, min = min(glider$m_present_time), max = max(glider$m_present_time), value = endDate)
-    updateSelectInput(session, "display_var", NULL, choices = c(scivars))
+    updateDateInput(session, "date1", NULL, min = min(df$m_present_time), max = max(df$m_present_time), value = startDate)
+    updateDateInput(session, "date2", NULL, min = min(df$m_present_time), max = max(df$m_present_time), value = endDate)
+    updateSelectInput(session, "display_var", NULL, choices = c(scivars), selected = "sci_water_temp")
     updateSelectizeInput(session, "flight_var", NULL, choices = c(flightvars), selected = "m_roll")
+    
     showNotification("Data loaded", type = "message")
+    
+    print(paste0(missionNum$id, " data loaded"))
+    
+    glider$full <- df
     
   })
   
   #dynamically filter for plotting
   chunk <- reactive({
-    filter(glider, m_present_time >= input$date1 & m_present_time <= input$date2) %>%
+    df <- glider$full %>%
+      filter(m_present_time >= input$date1 & m_present_time <= input$date2) %>%
       #filter(status %in% c(input$status)) %>%
       #filter(!(is.na(input$display_var) | is.na(m_depth))) %>%
       filter(m_depth >= input$min_depth & m_depth <= input$max_depth)
+    
+    df
+
   })
   
   #ranges for plot zooms
@@ -292,14 +451,13 @@ server <- function(input, output, session) {
   ########## science plot #########
   
   scienceChunk <- reactive({
-    req(input$load)
+    #req(input$display_var)
     
     select(chunk(), m_present_time, m_depth, input$display_var) %>%
       filter(!is.na(across(!c(m_present_time:m_depth))))
   })
   
   gg1 <- reactive({
-    req(input$load)
     ggplot(data = 
              scienceChunk(),#dynamically filter the sci variable of interest
            aes(x=m_present_time,
@@ -319,7 +477,7 @@ server <- function(input, output, session) {
                  na.rm = TRUE
       ) +
       theme_bw() +
-      labs(title = paste0(missionNum, " Science Data"),
+      labs(title = paste0(missionNum$id, " Science Data"),
            y = "Depth (m)",
            x = "Date") +
       theme(plot.title = element_text(size = 32)) +
@@ -377,7 +535,7 @@ server <- function(input, output, session) {
       geom_point() +
       coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
       theme_grey() +
-      labs(title = paste0(missionNum, " Flight Data"),
+      labs(title = paste0(missionNum$id, " Flight Data"),
            x = "Date") +
       theme(plot.title = element_text(size = 32)) +
       theme(axis.title = element_text(size = 16)) +
@@ -438,7 +596,7 @@ server <- function(input, output, session) {
       scale_y_reverse() +
       scale_colour_viridis_c(limits = c(limits = c(input$soundmin, input$soundmax))) +
       theme_bw() +
-      labs(title = paste0(missionNum, " Sound Velocity"),
+      labs(title = paste0(missionNum$id, " Sound Velocity"),
            caption = "Calculated using Coppens <i>et al.</i> (1981)",
            y = "Depth (m)",
            x = "Date") +
@@ -524,10 +682,12 @@ server <- function(input, output, session) {
       print("SSV!")
       newGlider <- ssv_to_rds(inputFile = input$upload$datapath,
                               missionNum = input$upload$name)
+      session$reload()
       #if kml
     } else if (ext == "kml"){
       print("KML!")
       file.copy(input$upload$datapath, "./KML")
+      session$reload()
       #file.rename(f)
     } else if (ext == "kmz"){
       showModal(modalDialog(
