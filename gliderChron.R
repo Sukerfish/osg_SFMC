@@ -83,6 +83,7 @@ gliderdf <- fdf %>%
   full_join(sdf) %>%
   #select(!c(segment)) %>%
   arrange(m_present_time) %>%
+  fill(segment, .direction = "downup") %>%
   mutate(osg_salinity = ec2pss(sci_water_cond*10, sci_water_temp, sci_water_pressure*10)) %>%
   mutate(osg_theta = theta(osg_salinity, sci_water_temp, sci_water_pressure)) %>%
   mutate(osg_rho = rho(osg_salinity, osg_theta, sci_water_pressure)) %>%
