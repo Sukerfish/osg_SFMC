@@ -1,6 +1,7 @@
 library(tidyverse)
 library(dplyr)
 library(seacarb)
+library(svglite)
 
 source("/srv/shiny-server/thebrewery/scripts/ssv_to_df.R")
 
@@ -103,4 +104,95 @@ flightvarsLive <- fdf %>%
   #select(!starts_with("sci")) %>%
   colnames()
 
-save(gliderdf, scivarsLive, flightvarsLive, file = "/echos/usf-stella/glider_live.RData")
+endDateLive <- max(gliderdf$m_present_time)
+
+##### dashboard calculations #####
+gliderdfChunk <- gliderdf %>%
+  filter(m_present_time >= endDateLive-14400)
+
+ahrCap <- 550
+ahrUsed <- max(gliderdf$m_coulomb_amphr_total, na.rm = TRUE)
+ahrLeft <- ahrCap-ahrUsed
+pwr3day <- gliderdf %>%
+  select(m_present_time, m_coulomb_amphr_total) %>%
+  filter(m_present_time >= endDateLive - 259200,
+         m_coulomb_amphr_total > 0)
+pwr1day <- pwr3day %>%
+  filter(m_present_time >= endDateLive - 86400)
+
+ahr3day <- (max(pwr3day$m_coulomb_amphr_total)-min(pwr3day$m_coulomb_amphr_total))/(as.numeric(max(pwr3day$m_present_time))-as.numeric(min(pwr3day$m_present_time)))*86400
+ahr1day <- (max(pwr1day$m_coulomb_amphr_total)-min(pwr1day$m_coulomb_amphr_total))/(as.numeric(max(pwr1day$m_present_time))-as.numeric(min(pwr1day$m_present_time)))*86400
+ahrAllday <- (max(gliderdf$m_coulomb_amphr_total, na.rm = TRUE)-min(gliderdf$m_coulomb_amphr_total, na.rm = TRUE))/(as.numeric(max(gliderdf$m_present_time, na.rm = TRUE))-as.numeric(min(gliderdf$m_present_time, na.rm = TRUE)))*86400
+
+LDmin <- min(gliderdfChunk$m_leakdetect_voltage, na.rm = TRUE)
+battLeft <- (ahrLeft/ahrCap)*100
+
+#### plots for carousel ####
+  battLive <- ggplot(
+    data = 
+      gliderdf,
+    aes(x=m_present_time,
+        y=m_battery,
+    )) +
+    geom_point(
+      # size = 2,
+      na.rm = TRUE
+    ) +
+    theme_bw() +
+    labs(title = "Mission Voltage",
+         y = "Battery (V)",
+         x = "Date") +
+    theme(plot.title = element_text(size = 32)) +
+    theme(axis.title = element_text(size = 16)) +
+    theme(axis.text = element_text(size = 12))
+
+leakLive <- ggplot(
+  data = 
+    filter(gliderdf, m_present_time >= endDateLive-14400),
+  aes(x=m_present_time,
+      y=m_leakdetect_voltage,
+  )) +
+  geom_point(
+    # size = 2,
+    na.rm = TRUE
+  ) +
+  theme_bw() +
+  labs(title = "LD last 4hrs",
+       y = "LeakDetect",
+       x = "Date") +
+  theme(plot.title = element_text(size = 32)) +
+  theme(axis.title = element_text(size = 16)) +
+  theme(axis.text = element_text(size = 12))
+
+# battLiveX <- xmlSVG({
+#   show(battLive)
+# }, standalone = TRUE)  
+# 
+# leakLiveX <- xmlSVG({
+#   show(leakLive)
+# }, standalone = TRUE)  
+
+livePlots <- list(
+  xmlSVG({show(leakLive)},standalone=TRUE), 
+  xmlSVG({show(battLive)},standalone=TRUE)
+)
+
+livePlots2 <- list(
+  leakLive,
+  battLive
+)
+
+save(gliderdf, scivarsLive, flightvarsLive,
+     ahrCap,
+     ahrUsed,
+     ahrLeft,
+     pwr3day,
+     pwr1day,
+     ahr3day,
+     ahr1day,
+     ahrAllday,
+     LDmin,
+     battLeft,
+     livePlots,
+     livePlots2,
+     file = "/echos/usf-stella/glider_live.RData")
