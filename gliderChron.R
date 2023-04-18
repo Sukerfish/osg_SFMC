@@ -1,6 +1,7 @@
 library(tidyverse)
 library(dplyr)
 library(seacarb)
+library(svglite)
 
 source("/srv/shiny-server/thebrewery/scripts/ssv_to_df.R")
 
@@ -126,6 +127,60 @@ ahrAllday <- (max(gliderdf$m_coulomb_amphr_total, na.rm = TRUE)-min(gliderdf$m_c
 LDmin <- min(gliderdfChunk$m_leakdetect_voltage, na.rm = TRUE)
 battLeft <- (ahrLeft/ahrCap)*100
 
+#### plots for carousel ####
+  battLive <- ggplot(
+    data = 
+      gliderdf,
+    aes(x=m_present_time,
+        y=m_battery,
+    )) +
+    geom_point(
+      # size = 2,
+      na.rm = TRUE
+    ) +
+    theme_bw() +
+    labs(title = "Mission Voltage",
+         y = "Battery (V)",
+         x = "Date") +
+    theme(plot.title = element_text(size = 32)) +
+    theme(axis.title = element_text(size = 16)) +
+    theme(axis.text = element_text(size = 12))
+
+leakLive <- ggplot(
+  data = 
+    filter(gliderdf, m_present_time >= endDateLive-14400),
+  aes(x=m_present_time,
+      y=m_leakdetect_voltage,
+  )) +
+  geom_point(
+    # size = 2,
+    na.rm = TRUE
+  ) +
+  theme_bw() +
+  labs(title = "LD last 4hrs",
+       y = "LeakDetect",
+       x = "Date") +
+  theme(plot.title = element_text(size = 32)) +
+  theme(axis.title = element_text(size = 16)) +
+  theme(axis.text = element_text(size = 12))
+
+# battLiveX <- xmlSVG({
+#   show(battLive)
+# }, standalone = TRUE)  
+# 
+# leakLiveX <- xmlSVG({
+#   show(leakLive)
+# }, standalone = TRUE)  
+
+livePlots <- list(
+  xmlSVG({show(leakLive)},standalone=TRUE), 
+  xmlSVG({show(battLive)},standalone=TRUE)
+)
+
+livePlots2 <- list(
+  leakLive,
+  battLive
+)
 
 save(gliderdf, scivarsLive, flightvarsLive,
      ahrCap,
@@ -138,4 +193,6 @@ save(gliderdf, scivarsLive, flightvarsLive,
      ahrAllday,
      LDmin,
      battLeft,
+     livePlots,
+     livePlots2,
      file = "/echos/usf-stella/glider_live.RData")
