@@ -164,6 +164,35 @@ battLive <- ggplot(
         axis.title = element_text(size = 20),
         axis.text = element_text(size = 16))
 
+#coulombs daily use
+coulombs <- gliderdf %>%
+  select(c(m_present_time, m_coulomb_amphr_total)) %>%
+  filter(m_coulomb_amphr_total > 0) %>%
+  mutate(day = floor_date(m_present_time,
+                          unit = "days")) %>%
+  group_by(day) %>%
+  mutate(dailyAhr = (max(m_coulomb_amphr_total)-min(m_coulomb_amphr_total))/(as.numeric(max(m_present_time))-as.numeric(min(m_present_time)))*86400) %>%
+  #select(c(day, meanBatt)) %>%
+  distinct(day, dailyAhr)
+
+couLive <- ggplot(
+  data = 
+    coulombs,
+  aes(x=day,
+      y=dailyAhr,
+  )) +
+  geom_point(
+    size = 2,
+    na.rm = TRUE
+  ) +
+  theme_bw() +
+  labs(title = "Daily Power Usage",
+       y = "Ahrs",
+       x = "Date") +
+  theme(plot.title = element_text(size = 32),
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16))
+
 #label all LD vars
 LDvars <- c("m_leakdetect_voltage", "m_leakdetect_voltage_forward", "m_leakdetect_voltage_science")
 
@@ -342,7 +371,7 @@ fullehunk <- bind_rows(elist, .id = "segment") %>%
 #assemble ggplots into list for export
 livePlots <- list(
   #carousel plots
-  leakLive, battLive, rollLive, ggEcho
+  leakLive, battLive, rollLive, couLive, ggEcho
 )
 
 print("saving everything")
