@@ -2,6 +2,8 @@ library(tidyverse)
 library(dplyr)
 library(seacarb)
 library(svglite)
+library(egg)
+library(lubridate)
 
 source("/srv/shiny-server/thebrewery/scripts/ssv_to_df.R")
 
@@ -128,58 +130,93 @@ LDmin <- min(gliderdfChunk$m_leakdetect_voltage, na.rm = TRUE)
 battLeft <- (ahrLeft/ahrCap)*100
 
 #### plots for carousel ####
-  battLive <- ggplot(
-    data = 
-      gliderdf,
-    aes(x=m_present_time,
-        y=m_battery,
-    )) +
-    geom_point(
-      # size = 2,
-      na.rm = TRUE
-    ) +
-    theme_bw() +
-    labs(title = "Mission Voltage",
-         y = "Battery (V)",
-         x = "Date") +
-    theme(plot.title = element_text(size = 32)) +
-    theme(axis.title = element_text(size = 16)) +
-    theme(axis.text = element_text(size = 12))
+bats <- gliderdf %>%
+  select(c(m_present_time, m_battery)) %>%
+  filter(m_battery > 0) %>%
+  mutate(day = floor_date(m_present_time,
+                          unit = "days")) %>%
+  group_by(day) %>%
+  mutate(meanBatt = mean(m_battery)) %>%
+  #select(c(day, meanBatt)) %>%
+  distinct(day, meanBatt)
+
+battLive <- ggplot(
+  data = 
+    bats,
+  aes(x=day,
+      y=meanBatt,
+  )) +
+  geom_point(
+    size = 2,
+    na.rm = TRUE
+  ) +
+  theme_bw() +
+  labs(title = "Daily Voltage Average",
+       y = "Battery (V)",
+       x = "Date") +
+  theme(plot.title = element_text(size = 32),
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16))
+
+vars <- c("m_leakdetect_voltage", "m_leakdetect_voltage_forward", "m_leakdetect_voltage_science")
+
+leaks <- gliderdf %>%
+  select(c(m_present_time, any_of(vars))) %>%
+  filter(m_leakdetect_voltage > 0) %>%
+  filter(m_present_time >= endDateLive-14400) %>%
+  pivot_longer(cols = any_of(vars))
 
 leakLive <- ggplot(
   data = 
-    filter(gliderdf, m_present_time >= endDateLive-14400),
+    leaks,
   aes(x=m_present_time,
-      y=m_leakdetect_voltage,
+      y=value,
+      color = name
   )) +
   geom_point(
-    # size = 2,
+    size = 2,
     na.rm = TRUE
   ) +
   theme_bw() +
   labs(title = "LD last 4hrs",
-       y = "LeakDetect",
+       y = "Voltage",
        x = "Date") +
-  theme(plot.title = element_text(size = 32)) +
-  theme(axis.title = element_text(size = 16)) +
-  theme(axis.text = element_text(size = 12))
+  theme(plot.title = element_text(size = 32),
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16),
+        legend.position   =  "bottom")
 
-# battLiveX <- xmlSVG({
-#   show(battLive)
-# }, standalone = TRUE)  
-# 
-# leakLiveX <- xmlSVG({
-#   show(leakLive)
-# }, standalone = TRUE)  
+roll <- gliderdf %>%
+  select(c(m_present_time, m_roll)) %>%
+  filter(!is.na(m_roll > 0)) %>%
+  mutate(day = floor_date(m_present_time,
+                          unit = "days")) %>%
+  group_by(day) %>%
+  mutate(meanRoll = mean(m_roll)) %>%
+  #select(c(day, meanBatt)) %>%
+  distinct(day, meanRoll)
+
+rollLive <- ggplot(
+  data = 
+    roll,
+  aes(x=day,
+      y=meanRoll*180/pi,
+  )) +
+  geom_point(
+    size = 2,
+    na.rm = TRUE
+  ) +
+  scale_y_continuous(limits = symmetric_range) +
+  theme_bw() +
+  labs(title = "Daily Roll Average",
+       y = "Roll (deg)",
+       x = "Date") +
+  theme(plot.title = element_text(size = 32),
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16))
 
 livePlots <- list(
-  xmlSVG({show(leakLive)},standalone=TRUE), 
-  xmlSVG({show(battLive)},standalone=TRUE)
-)
-
-livePlots2 <- list(
-  leakLive,
-  battLive
+  leakLive, battLive, rollLive
 )
 
 save(gliderdf, scivarsLive, flightvarsLive,
@@ -194,5 +231,4 @@ save(gliderdf, scivarsLive, flightvarsLive,
      LDmin,
      battLeft,
      livePlots,
-     livePlots2,
      file = "/echos/usf-stella/glider_live.RData")
