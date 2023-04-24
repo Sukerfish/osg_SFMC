@@ -10,6 +10,8 @@ library(scales)
 source("/srv/shiny-server/thebrewery/scripts/ssv_to_df.R")
 source("/srv/shiny-server/thebrewery/scripts/pseudogram.R")
 
+gliderName = "usf-stella"
+
 #https://rdrr.io/github/AustralianAntarcticDivision/ZooScatR/src/R/soundvelocity.R
 c_Coppens1981 <- function(D,S,T){
   t <- T/10
@@ -275,9 +277,11 @@ depthList <- rownames(depthInfo) %>%
 echoListraw <- intersect(velList, depthList) %>% #keep only files that are matched depths/layers sets
   str_remove(pattern = ".ssv") %>%
   enframe() %>%
-  mutate(ID = str_extract(value, "(?<=-)[0-9]*$")) %>% #extract the full segment name out
-  mutate(ID = as.numeric(ID)) %>%
-  arrange(ID)
+  mutate(fileID = str_remove(value, paste0(gliderName, "-"))) %>% #strip off glider name
+  separate(fileID, into = c("Year", "Day", "mNum", "fileNum"), sep = "-") %>% #separate filename components
+  mutate(fileNum = str_pad(fileNum, 4, side = "left", pad = "0")) %>% #pad the file number for easy sort
+  arrange(Year, Day, mNum, fileNum) %>% #sort in order
+  select(!c(name)) #drop column
 
 # process into long format for plotting
 ehunk <- pseudogram(paste0("/echos/layers/", tail(echoListraw$value, 1), ".ssv"),
