@@ -1,5 +1,4 @@
 library(tidyverse)
-library(dplyr)
 library(seacarb)
 library(svglite)
 library(egg)
@@ -9,6 +8,7 @@ library(scales)
 
 source("/srv/shiny-server/thebrewery/scripts/ssv_to_df.R")
 source("/srv/shiny-server/thebrewery/scripts/pseudogram.R")
+source("/srv/shiny-server/thebrewery/scripts/gotoLoad.R")
 
 gliderName = "usf-stella"
 
@@ -135,6 +135,16 @@ ahrAllday <- (max(gliderdf$m_coulomb_amphr_total, na.rm = TRUE)-min(gliderdf$m_c
 
 LDmin <- min(gliderdfChunk$m_leakdetect_voltage, na.rm = TRUE)
 battLeft <- (ahrLeft/ahrCap)*100
+
+###### to glider file list ########
+toGliderListInfo <- file.info(list.files(path = paste0("/gliders/gliders/", gliderName, "/archive/"),
+                                     full.names = TRUE)) %>%
+  filter(size > 0)
+
+
+toGliderList <- basename(rownames(toGliderListInfo)) %>%
+  as.data.frame() %>%
+  rename(fileName = 1)
 
 #### plots for carousel ####
 #get daily battery average
@@ -379,7 +389,7 @@ livePlots <- list(
 )
 
 print("saving everything")
-save(gliderdf, scivarsLive, flightvarsLive,
+save(gliderdf, scivarsLive, flightvarsLive, toGliderList,
      ahrCap,
      ahrUsed,
      ahrLeft,
