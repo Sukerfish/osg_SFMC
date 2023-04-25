@@ -8,7 +8,6 @@ library(scales)
 
 source("/srv/shiny-server/thebrewery/scripts/ssv_to_df.R")
 source("/srv/shiny-server/thebrewery/scripts/pseudogram.R")
-source("/srv/shiny-server/thebrewery/scripts/gotoLoad.R")
 
 gliderName = "usf-stella"
 
