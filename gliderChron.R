@@ -1,9 +1,15 @@
 library(tidyverse)
-library(dplyr)
 library(seacarb)
 library(svglite)
+library(egg)
+library(lubridate)
+library(ggplot2)
+library(scales)
 
 source("/srv/shiny-server/thebrewery/scripts/ssv_to_df.R")
+source("/srv/shiny-server/thebrewery/scripts/pseudogram.R")
+
+gliderName = "usf-stella"
 
 #https://rdrr.io/github/AustralianAntarcticDivision/ZooScatR/src/R/soundvelocity.R
 c_Coppens1981 <- function(D,S,T){
@@ -77,14 +83,14 @@ fdf <- bind_rows(flist, .id = "segment") %>%
 
 sdf <- bind_rows(slist, .id = "segment") %>%
   filter(sci_m_present_time > 1677646800) %>%
-  mutate(m_present_time = sci_m_present_time)
+  mutate(m_present_time = sci_m_present_time) #consider sci time same as flight time for ease of merging
 
 gliderdf <- fdf %>%
-  select(!c(segment)) %>%
-  full_join(sdf) %>%
-  #select(!c(segment)) %>%
-  arrange(m_present_time) %>%
-  fill(segment, .direction = "downup") %>%
+  select(!c(segment)) %>% #temporarily remove segment
+  full_join(sdf) %>% #merge in sci data and get segment back
+  arrange(m_present_time) %>% #ensure chronological order
+  fill(segment, .direction = "downup") %>% #fill out segment ID
+  #calculate several osg* variables for plotting
   mutate(osg_salinity = ec2pss(sci_water_cond*10, sci_water_temp, sci_water_pressure*10)) %>%
   mutate(osg_theta = theta(osg_salinity, sci_water_temp, sci_water_pressure)) %>%
   mutate(osg_rho = rho(osg_salinity, osg_theta, sci_water_pressure)) %>%
@@ -104,9 +110,11 @@ flightvarsLive <- fdf %>%
   #select(!starts_with("sci")) %>%
   colnames()
 
+#get oldest timestamp in dataset for use in calculations
 endDateLive <- max(gliderdf$m_present_time)
 
 ##### dashboard calculations #####
+print("dashboard calculations")
 gliderdfChunk <- gliderdf %>%
   filter(m_present_time >= endDateLive-14400)
 
@@ -127,62 +135,260 @@ ahrAllday <- (max(gliderdf$m_coulomb_amphr_total, na.rm = TRUE)-min(gliderdf$m_c
 LDmin <- min(gliderdfChunk$m_leakdetect_voltage, na.rm = TRUE)
 battLeft <- (ahrLeft/ahrCap)*100
 
+###### to glider file list ########
+toGliderListInfo <- file.info(list.files(path = paste0("/gliders/gliders/", gliderName, "/archive/"),
+                                     full.names = TRUE)) %>%
+  filter(size > 0)
+
+
+toGliderList <- basename(rownames(toGliderListInfo)) %>%
+  as.data.frame() %>%
+  rename(fileName = 1)
+
 #### plots for carousel ####
-  battLive <- ggplot(
-    data = 
-      gliderdf,
-    aes(x=m_present_time,
-        y=m_battery,
-    )) +
-    geom_point(
-      # size = 2,
-      na.rm = TRUE
-    ) +
-    theme_bw() +
-    labs(title = "Mission Voltage",
-         y = "Battery (V)",
-         x = "Date") +
-    theme(plot.title = element_text(size = 32)) +
-    theme(axis.title = element_text(size = 16)) +
-    theme(axis.text = element_text(size = 12))
+#get daily battery average
+bats <- gliderdf %>%
+  select(c(m_present_time, m_battery)) %>%
+  filter(m_battery > 0) %>%
+  mutate(day = floor_date(m_present_time,
+                          unit = "days")) %>%
+  group_by(day) %>%
+  mutate(meanBatt = mean(m_battery)) %>%
+  #select(c(day, meanBatt)) %>%
+  distinct(day, meanBatt)
+
+battLive <- ggplot(
+  data = 
+    bats,
+  aes(x=day,
+      y=meanBatt,
+  )) +
+  geom_point(
+    size = 2,
+    na.rm = TRUE
+  ) +
+  theme_bw() +
+  labs(title = "Daily Voltage Average",
+       y = "Battery (V)",
+       x = "Date") +
+  theme(plot.title = element_text(size = 32),
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16))
+
+#coulombs daily use
+coulombs <- gliderdf %>%
+  select(c(m_present_time, m_coulomb_amphr_total)) %>%
+  filter(m_coulomb_amphr_total > 0) %>%
+  mutate(day = floor_date(m_present_time,
+                          unit = "days")) %>%
+  group_by(day) %>%
+  mutate(dailyAhr = (max(m_coulomb_amphr_total)-min(m_coulomb_amphr_total))/(as.numeric(max(m_present_time))-as.numeric(min(m_present_time)))*86400) %>%
+  #select(c(day, meanBatt)) %>%
+  distinct(day, dailyAhr)
+
+couLive <- ggplot(
+  data = 
+    coulombs,
+  aes(x=day,
+      y=dailyAhr,
+  )) +
+  geom_point(
+    size = 2,
+    na.rm = TRUE
+  ) +
+  theme_bw() +
+  labs(title = "Daily Power Usage",
+       y = "Ahrs",
+       x = "Date") +
+  theme(plot.title = element_text(size = 32),
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16))
+
+#label all LD vars
+LDvars <- c("m_leakdetect_voltage", "m_leakdetect_voltage_forward", "m_leakdetect_voltage_science")
+
+leaks <- gliderdf %>%
+  select(c(m_present_time, any_of(LDvars))) %>%
+  filter(m_leakdetect_voltage > 0) %>%
+  filter(m_present_time >= endDateLive-14400) %>%
+  pivot_longer(cols = any_of(LDvars))
 
 leakLive <- ggplot(
   data = 
-    filter(gliderdf, m_present_time >= endDateLive-14400),
+    leaks,
   aes(x=m_present_time,
-      y=m_leakdetect_voltage,
+      y=value,
+      color = name
   )) +
   geom_point(
-    # size = 2,
+    size = 2,
     na.rm = TRUE
   ) +
   theme_bw() +
   labs(title = "LD last 4hrs",
-       y = "LeakDetect",
+       y = "Voltage",
        x = "Date") +
-  theme(plot.title = element_text(size = 32)) +
-  theme(axis.title = element_text(size = 16)) +
-  theme(axis.text = element_text(size = 12))
+  theme(plot.title = element_text(size = 32),
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16),
+        legend.position   =  "bottom")
 
-# battLiveX <- xmlSVG({
-#   show(battLive)
-# }, standalone = TRUE)  
+#get daily roll averages
+roll <- gliderdf %>%
+  select(c(m_present_time, m_roll)) %>%
+  filter(!is.na(m_roll)) %>%
+  mutate(day = floor_date(m_present_time,
+                          unit = "days")) %>%
+  group_by(day) %>%
+  mutate(meanRoll = mean(m_roll)) %>%
+  #select(c(day, meanBatt)) %>%
+  distinct(day, meanRoll)
+
+rollLive <- ggplot(
+  data = 
+    roll,
+  aes(x=day,
+      y=meanRoll*180/pi,
+  )) +
+  geom_point(
+    size = 2,
+    na.rm = TRUE
+  ) +
+  scale_y_continuous(limits = symmetric_range) +
+  theme_bw() +
+  labs(title = "Daily Roll Average",
+       y = "Roll (deg)",
+       x = "Date") +
+  theme(plot.title = element_text(size = 32),
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16))
+
+
+
+
+
+###### pseudogram calculations #####
+print("pseudogram calculations")
+#initial file list setup ... ensure files have data before allowing
+velInfo <- file.info(list.files(path = "/echos/layers/",
+                                full.names = TRUE)) %>%
+  filter(size > 0)
+
+velList <- rownames(velInfo) %>%
+  basename()
+
+depthInfo <- file.info(list.files(path = "/echos/depths/",
+                                  full.names = TRUE))
+
+depthList <- rownames(depthInfo) %>%
+  basename()
+
+echoListraw <- intersect(velList, depthList) %>% #keep only files that are matched depths/layers sets
+  str_remove(pattern = ".ssv") %>%
+  enframe() %>%
+  mutate(fileID = str_remove(value, paste0(gliderName, "-"))) %>% #strip off glider name
+  separate(fileID, into = c("Year", "Day", "mNum", "fileNum"), sep = "-") %>% #separate filename components
+  mutate(fileNum = str_pad(fileNum, 4, side = "left", pad = "0")) %>% #pad the file number for easy sort
+  arrange(Year, Day, mNum, fileNum) %>% #sort in order
+  select(!c(name)) #drop column
+
+# process into long format for plotting
+ehunk <- pseudogram(paste0("/echos/layers/", tail(echoListraw$value, 1), ".ssv"),
+                      paste0("/echos/depths/", tail(echoListraw$value, 1), ".ssv"))
+
+
+#color palette source:
+#https://rdrr.io/github/hvillalo/echogram/src/R/palette.echogram.R
+
+#plotitup
+ggEcho <-
+    ggplot(data = 
+             ehunk,
+           aes(x=m_present_time,
+               y=p_depth,
+               z=value)) +
+    geom_point(
+      aes(color = value),
+      size = 6,
+      pch = 15,
+      na.rm = TRUE
+    ) +
+  scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
+                                     "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
+                         limits = c(-75, -30)) +
+    scale_y_reverse() +
+    theme_bw() +
+    labs(title = "Latest Pseudogram",
+         y = "Depth (m)",
+         x = "Date/Time (UTC)",
+         colour = "dB") +
+    theme(plot.title = element_text(size = 32),
+          axis.title = element_text(size = 16),
+          axis.text = element_text(size = 12),
+          legend.key = element_blank()) +
+    guides(size="none") +
+    scale_x_datetime(labels = date_format("%Y-%m-%d %H:%M"))
+
+#### pseudotimegram setup ####
+elist <- list()
+for (i in echoListraw$value) {
+  elist[[i]] <- pseudogram(paste0("/echos/layers/", i, ".ssv"),
+                           paste0("/echos/depths/", i, ".ssv"))
+}
+
+# main assembled dataframe
+fullehunk <- bind_rows(elist, .id = "segment") %>%
+  mutate(r_depth = round(q_depth, 0)) %>%
+  mutate(day = day(m_present_time)) %>%
+  mutate(hour = hour(m_present_time))
+
+#timegram plot dataframe
+# plotethunk <- fullehunk %>%
+#   group_by(segment, r_depth) %>%
+#   mutate(avgDb = mean(value)) %>%
+#   ungroup() %>%
+#   group_by(segment) %>%
+#   mutate(seg_time = mean(m_present_time)) %>%
+#   ungroup() %>%
+#   mutate(seg_hour = hour(seg_time)) %>%
+#   mutate(cycle = case_when(seg_hour %in% c(11:23) ~ 'day',
+#                            seg_hour %in% c(1:10, 24) ~ 'night'))
 # 
-# leakLiveX <- xmlSVG({
-#   show(leakLive)
-# }, standalone = TRUE)  
+# ggEchoTime <- 
+#   ggplot(data = plotethunk,
+#          aes(x = seg_time,
+#              y = r_depth,
+#              colour = avgDb,
+#          )) +
+#   geom_point(size = 4,
+#              pch = 15
+#   ) +
+#   scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
+#                                      "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
+#                          limits = c(-75, -30)) +
+#   scale_y_reverse() +
+#   theme_bw() +
+#   labs(title = paste0("Avg dB returns (per meter) at depth"),
+#        y = "Depth (m)",
+#        #x = "Date/Time (UTC)",
+#        x = "Date",
+#        colour = "average dB") +
+#   theme(plot.title = element_text(size = 32),
+#         axis.title = element_text(size = 16),
+#         axis.text = element_text(size = 12),
+#         legend.key = element_blank()) +
+#   guides(size="none")
 
+##### save everything ########
+
+#assemble ggplots into list for export
 livePlots <- list(
-  xmlSVG({show(leakLive)},standalone=TRUE), 
-  xmlSVG({show(battLive)},standalone=TRUE)
+  #carousel plots
+  leakLive, battLive, rollLive, couLive, ggEcho
 )
 
-livePlots2 <- list(
-  leakLive,
-  battLive
-)
-
-save(gliderdf, scivarsLive, flightvarsLive,
+print("saving everything")
+save(gliderdf, scivarsLive, flightvarsLive, toGliderList,
      ahrCap,
      ahrUsed,
      ahrLeft,
@@ -193,6 +399,7 @@ save(gliderdf, scivarsLive, flightvarsLive,
      ahrAllday,
      LDmin,
      battLeft,
+     echoListraw,
+     fullehunk,
      livePlots,
-     livePlots2,
      file = "/echos/usf-stella/glider_live.RData")
