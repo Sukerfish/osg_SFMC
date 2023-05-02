@@ -6,7 +6,7 @@ library(tidyverse)
 # library(ggplot2)
 # library(scales)
 
-source("./thebrewery/scripts/gliderLive.R")
+source("/srv/shiny-server/thebrewery/scripts/gliderLive.R")
 
 deployedGliders <- read.csv("/echos/deployedGliders.txt", 
                             sep = "",
