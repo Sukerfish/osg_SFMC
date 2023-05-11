@@ -14,6 +14,9 @@ deployedGliders <- read.csv("/echos/deployedGliders.txt",
 colnames(deployedGliders)[1] = "Name"
 colnames(deployedGliders)[2] = "ahrCap"
 
+deployedGliders <- deployedGliders %>%
+  filter(!str_starts(Name,"#")) #remove any commented lines
+
 gliders_live <- list()
 for (i in deployedGliders$Name){
   df <- filter(deployedGliders, Name == i)
