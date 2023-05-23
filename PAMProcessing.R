@@ -27,7 +27,7 @@ for (i in pamList){
   
   inwave <- readWave(paste0("/echos/PAM/", i))
   
-  png(paste0(i, ".png"),
+  png(paste0("/echos/spectrograms/", i, ".png"),
       width = 1920,
       height = 1080)
   
