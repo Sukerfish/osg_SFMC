@@ -56,3 +56,52 @@ ggplot(data = idk,
   geom_point() +
   geom_line() +
   scale_y_reverse()
+
+
+###### pseudotimegram #####
+pf <- fullehunk %>%
+  group_by(segment) %>%
+  mutate(seg_time = mean(m_present_time)) %>%
+  ungroup() %>%
+  mutate(seg_hour = hour(seg_time)) %>%
+  mutate(cycle = case_when(seg_hour %in% c(11:23) ~ 'day',
+                           seg_hour %in% c(1:10, 24) ~ 'night')) %>% # add day/night filter
+  #filter(cycle %in% input$todTgram) %>%
+  group_by(segment, r_depth, cycle) %>%
+  mutate(avgDb = exp(mean(log(abs(value))))*-1) %>%
+  #mutate(avgDbOLD = mean(value)) %>%
+  ungroup()
+
+test <- interval(ymd_hm("2023-04-02T04:00"), ymd_hm("2023-04-03T05:00"))
+
+qf <- pf %>%
+  filter(m_present_time %within% test)
+
+ggEchoTime <- 
+  ggplot(data = qf,
+         aes(x = m_present_time,
+             y = r_depth,
+             colour = value,
+         )) +
+  geom_point(size = 2,
+             pch = 15
+  ) +
+  #coord_equal() +
+  #scale_color_viridis_c() +
+  scale_y_reverse() +
+  theme_bw() +
+  labs(#title = paste0("Avg dB returns (per meter) at depth from ", input$echohistrange2[1], " to ", input$echohistrange2[2]),
+       y = "Depth (m)",
+       #x = "Date/Time (UTC)",
+       x = "Date",
+       colour = "average dB") +
+  theme(plot.title = element_text(size = 32),
+        axis.title = element_text(size = 16),
+        axis.text = element_text(size = 12),
+        legend.key = element_blank(),
+        plot.caption = element_markdown()) +
+  guides(size="none") +
+    scale_colour_gradientn(colours = c("#9F9F9F", "#5F5F5F", "#0000FF", "#00007F", "#00BF00", "#007F00",
+                                       "#FF1900", "#FF7F00","#FF00BF", "#FF0000", "#A65300", "#783C28"),
+                           limits = c(-75, -30)
+    )
