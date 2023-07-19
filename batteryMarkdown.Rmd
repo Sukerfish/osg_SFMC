@@ -1,0 +1,35 @@
+---
+author: "Earle"
+date: "`r Sys.Date()`"
+output: blastula::blastula_email 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+### battery publishing ###
+library(tidyverse)
+  
+  if (ahrCap$ahrCap > 0){
+    recoDays <- format(round(((ahrCap$ahrCap*.9)-ahrUsed)/ahr3day, 2), nsmall = 2) #calculate days til 10% abort level
+  }
+  
+```
+
+---
+title: "`r i` Summary"
+---
+
+## Battery Summary for `r i`
+
+Approximate time until 10% abort level: `r recoDays` days (calculated using 72hr usage)
+
+Total mission usage: `r round(ahrAllday, 2)` ahr/day
+
+Last 24hr amphr usage: `r round(ahr1day, 2)` ahr/day
+
+Last 72hr amphr usage: `r round(ahr3day, 2)` ahr/day
+
+This is the daily summary for `r i`. For full data, see <http://earle.marine.usf.edu:3838/thebrewery/>.
