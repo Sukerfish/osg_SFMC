@@ -1,7 +1,5 @@
-library(ggplot2)
 library(tidyverse)
-library(glue)
-library(blastula)
+library(emayili)
 
 #get deployed gliders
 deployedGliders <- read.csv("/echos/deployedGliders.txt", 
@@ -15,7 +13,7 @@ deployedGliders <- deployedGliders %>%
   filter(!str_starts(Name,"#")) #remove any commented lines
 
 #initialize list
-gliders_live <- list()
+#gliders_live <- list()
 for (i in deployedGliders$Name){
   
   #load latest live data file
@@ -23,39 +21,10 @@ for (i in deployedGliders$Name){
   
   if (ahrCap$ahrCap > 0){
     msg <- envelope() %>%
-      render("batteryMarkdown.Rmd")
+      render("batteryMarkdown.Rmd") %>%
+      subject(paste0("Daily summary for ", as.character(i)))
+    
+    capture.output(print(msg, details = TRUE), file = paste0("/echos/", i, "/summary.html"))
   }
   
 }
-
-
-# Prepare the image (as a text input)
-gg_image <- add_ggplot(plot_object = couLive)
-
-# Generate the body text
-body_text <-
-  md(c(
-    "
-Hello,
-
-I just wanted to let you know that the *ggplot* you \\
-wanted to see is right here, in this email:",
-
-gg_image,
-"
-
-Cheers,
-
-Me
-"
-  ))
-
-# Compose the email message
-out <- compose_email(body = body_text)
-
-htmltools::save_html(out$html_html, "test3.html")
-
-# use cid_images to read in the file
-email_obj <- blastula:::cid_images("test3.html")
-
-htmltools::save_html(email_obj$html_html, "test4.html")
