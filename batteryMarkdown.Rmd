@@ -18,9 +18,9 @@ library(tidyverse)
 library(lubridate)
 library(terra)
   
-source("./thebrewery/scripts/gliderGPS_to_dd.R")
+source("srv/shiny-server/thebrewery/scripts/gliderGPS_to_dd.R")
 
-#i <- "usf-jaialai"
+#i <- "usf-gansett"
 #load(paste0("/echos/", i, "/glider_live.RData"))
 
   if (ahrCap$ahrCap > 0){
@@ -44,10 +44,12 @@ dailydf <- gliderdf %>%
 rolldf <- dailydf %>%
   select(c(m_present_time, m_roll, osg_i_depth)) %>%
   filter(!is.na(m_roll)) %>%
+  filter(osg_i_depth > 2) %>%
   mutate(lagRoll = lag(m_roll)) %>%
   mutate(deltaRoll = (m_roll - lagRoll)*180/pi) %>%
   mutate(deltaRoll = abs(deltaRoll)) %>%
-  filter(deltaRoll == max(deltaRoll, na.rm = TRUE))
+  filter(deltaRoll == max(deltaRoll, na.rm = TRUE)) %>%
+  tail(1)
 
 maxRoll <- as.logical(max(rolldf$deltaRoll > 10))
 
