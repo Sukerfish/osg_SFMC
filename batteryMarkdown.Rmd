@@ -18,7 +18,7 @@ library(tidyverse)
 library(lubridate)
 library(terra)
   
-source("srv/shiny-server/thebrewery/scripts/gliderGPS_to_dd.R")
+source("/srv/shiny-server/thebrewery/scripts/gliderGPS_to_dd.R")
 
 #i <- "usf-gansett"
 #load(paste0("/echos/", i, "/glider_live.RData"))
