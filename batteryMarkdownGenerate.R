@@ -21,7 +21,7 @@ for (i in deployedGliders$Name){
   
   if (ahrCap$ahrCap > 0){
     msg <- envelope() %>%
-      render("batteryMarkdown.Rmd") %>%
+      emayili::render("batteryMarkdown.Rmd") %>%
       subject(paste0("Daily summary for ", as.character(i)))
     
     capture.output(print(msg, details = TRUE), file = paste0("/echos/", i, "/summary.html"))
