@@ -60,52 +60,58 @@ out <- test %>%
 
 
 identify_casts <- function(data, surface_threshold = 0.1) {
-  # Initialize vectors to store cast information and yo_number
+  # Initialize vectors to store cast information and yo values
   casts <- character(nrow(data))
-  yo_number <- integer(nrow(data))
+  yo <- numeric(nrow(data))
   
   # Find the index where depth data becomes available
   first_depth_index <- which(!is.na(data$osg_i_depth))[1]
   
-  # Initialize casts and yo_number for missing depth rows as "Unknown" and NA
+  # Initialize casts for missing depth rows as "Unknown"
   casts[1:(first_depth_index - 1)] <- "Unknown"
-  yo_number[1:(first_depth_index - 1)] <- NA
+  yo[1:(first_depth_index - 1)] <- NA
   
-  current_yo_number <- 1  # Initialize current yo_number
+  # Initialize variables to keep track of the previous cast type and yo count
+  prev_cast <- "Unknown"
+  yo_count <- 0
   
-  # Loop through the data to identify casts and assign yo_numbers
-  for (i in (first_depth_index):nrow(data)) {
+  # Loop through the data to identify casts and update yo values
+  for (i in first_depth_index:nrow(data)) {
     if (!is.na(data$osg_i_depth[i]) && !is.na(data$osg_i_depth[i - 1])) {
       if (data$osg_i_depth[i] > data$osg_i_depth[i - 1]) {
-        if (casts[i - 1] == "Upcast") {
-          casts[i] <- "Downcast"
-          yo_number[i] <- current_yo_number
-        } else {
-          casts[i] <- "Surface"
+        casts[i] <- "Downcast"
+        if (prev_cast == "Upcast") {
+          yo_count <- yo_count + 1
         }
       } else if (data$osg_i_depth[i] < data$osg_i_depth[i - 1]) {
-        if (casts[i - 1] == "Downcast" || casts[i - 1] == "Surface") {
-          casts[i] <- "Upcast"
-          yo_number[i] <- current_yo_number
-          current_yo_number <- current_yo_number + 1  # Increment yo_number
-        } else {
-          casts[i] <- "Surface"
-        }
+        casts[i] <- "Upcast"
       } else {
         casts[i] <- "Surface"
-        yo_number[i] <- NA
+        yo_count <- yo_count  # Reset yo_count during surface
       }
     }
+    prev_cast <- casts[i]
+    yo[i] <- yo_count
   }
   
   # Assign "Surface" to points with depth near zero or below the surface threshold
-  casts[data$osg_i_depth < surface_threshold] <- "Surface"
+  surface_indices <- which(data$osg_i_depth < surface_threshold)
+  casts[surface_indices] <- "Surface"
+  yo[surface_indices] <- NA
   
-  # Create new columns in the dataframe to store the cast information and yo_number
+  # Create new columns in the dataframe to store the cast information and yo values
   data$cast <- casts
-  data$yo_number <- yo_number
+  data$yo <- yo
   
   return(data)
 }
+
+
+
+
+
+
+
+
 
 
