@@ -2,6 +2,17 @@
 
 library(tidyverse)
 
+my.write <- function(x, file, header, f = write.csv, ...){
+  # create and open the file connection
+  datafile <- file(file, open = 'wt')
+  # close on exit
+  on.exit(close(datafile))
+  # if a header is defined, write it to the file (@CarlWitthoft's suggestion)
+  if(!missing(header)) writeLines(header,con=datafile)
+  # write the file using the defined function and required addition arguments  
+  f(x, datafile,...)
+}
+
 #get deployed gliders
 deployedGliders <- read.csv("/echos/deployedGliders.txt", 
                             sep = "",
@@ -67,8 +78,12 @@ for (i in deployedGliders$Name){
           filter(!is.na(osg_soundvel1)) #select vars of interest and remove NAs
         
         #write csv for each yo within cast within segment
-        write.csv(yop,
-                  file = paste0("/echos/gvp/", i, "/", l, "/", k, "_yo_", y, ".csv"))
+        my.write(yop, paste0("/echos/gvp/", i, "/", l, "/", k, "_yo_", y, ".csv"), "test header", f = write.csv, row.names = FALSE)
+        # datafile <- file(paste0("/echos/gvp/", i, "/", l, "/", k, "_yo_", y, ".csv"), open = "wt")
+        # writeLines("testing", con=datafile)
+        # write.csv(yop, datafile)
+        # 
+        # close(datafile)
       }
         
     }
