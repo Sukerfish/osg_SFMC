@@ -37,7 +37,7 @@ for (i in deployedGliders$Name){
   svpdf <- gliderdf %>%
     select(c(m_present_time, segment, i_lat, i_lon, 
              osg_i_depth, osg_soundvel1,
-             cast, yo_id, m_water_depth)) #select only vars of interest
+             cast, yo_id, m_water_depth, sci_water_temp, osg_salinity)) #select only vars of interest
   
   out <- list() #initialize list for segment by segment calcs
   for (j in unique(svpdf$segment)) {
@@ -87,7 +87,7 @@ for (i in deployedGliders$Name){
         yodat <- head(yop, 1)
         
         #format metadata for header in .asvp format
-        metadata <- paste0("( SoundVelocity 1.00 ", y, " ", strftime(Sys.time(), format = "%Y%m%d%H%M"), " ", #file ID/creation time
+        asvp <- paste0("( SoundVelocity 1.00 ", y, " ", strftime(Sys.time(), format = "%Y%m%d%H%M"), " ", #file ID/creation time
                            round(yodat$p_lat, 7), " ", round(yodat$p_lon, 7), " ", #profile lat/lon
                            "4500", " ", #radius of validity
                            strftime(min(yop$m_present_time), format = "%Y%m%d%H%M", tz = "UTC"), #valid start time, force m_present_time as UTC
@@ -98,8 +98,25 @@ for (i in deployedGliders$Name){
         my.write(yop %>%
                    select(c(osg_i_depth, osg_soundvel1)) %>%
                    round(., 4), 
-                 paste0("/echos/gvp/", i, "/", l, "/", k, "_yo_", y, ".asvp"), header = metadata, 
+                 paste0("/echos/gvp/", i, "/", l, "/", k, "_yo_", y, ".asvp"), header = asvp, 
                  f = write.table, row.names = FALSE, col.names = FALSE)
+        
+        #format metadata for header in .edf format
+          write(c(paste0("Date of Launch: ", strftime(yodat$p_time, format = "%m/%d/%Y", tz = "UTC")),
+                  paste0("Time of Launch: ", strftime(yodat$p_time, format = "%H:%M:%S", tz = "UTC")),
+                  paste0("Sequence # : ", y),
+                  paste0("Latitude : ", round(yodat$p_lat, 7)),
+                  paste0("Longitude : ", round(yodat$p_lon, 7)),
+                  paste0("Display Units : Metric"),
+                  paste0("Depth (m) - Temperature (C) - Sound Velocity (m/s) - Salinity (ppt)")), 
+                file = paste0("/echos/gvp/", i, "/", l, "/", k, "_yo_", y, ".edf"))
+        
+        #write edf for each yo within cast within segment
+        write.table(yop %>%
+                   select(c(osg_i_depth, sci_water_temp, osg_soundvel1, osg_salinity)) %>%
+                   round(., 4), 
+                   file = paste0("/echos/gvp/", i, "/", l, "/", k, "_yo_", y, ".edf"), 
+                   row.names = FALSE, col.names = FALSE, append = TRUE, quote = FALSE)
       }
         
     }
