@@ -23,8 +23,8 @@ source("/srv/shiny-server/thebrewery/scripts/gliderGPS_to_dd.R")
 #i <- "usf-gansett"
 #load(paste0("/echos/", i, "/glider_live.RData"))
 
-  if (ahrCap$ahrCap > 0){
-    recoDays <- format(round(((ahrCap$ahrCap*.9)-ahrUsed)/ahr3day, 2), nsmall = 2) #calculate days til 10% abort level
+  if (ahrCap > 0){
+    recoDays <- format(round(((ahrCap*.9)-ahrUsed)/ahr3day, 2), nsmall = 2) #calculate days til 10% abort level
   } else {
     recoDays <- format(round(battLeft), nsmall = 2)
   }
@@ -76,9 +76,13 @@ posTime <- dailydf %>%
 dist <- sum(distance(as.matrix(pos), lonlat = TRUE, sequential = TRUE))
 toGo <- sum(distance(as.matrix(tail(pos, 1)), as.matrix(cwpt), lonlat = TRUE))
 
+daysDep <- (min(gliderdf$m_present_time) %--% max(gliderdf$m_present_time))/days(1)
+
 ```
 
 ##### **Power Usage**
+
+Days deployed: `r round(daysDep, 2)`
 
 Approximate time until 10% abort level: `r recoDays` days (calculated using 72hr usage)
 
