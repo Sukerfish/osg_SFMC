@@ -95,7 +95,7 @@ server <- function(input, output) {
   
   
   gliderDay <- interval(max(fullDF$m_present_time), #lower bound
-                         max(fullDF$m_present_time) - hours(12)  #upper bound
+                         max(fullDF$m_present_time) - hours(24)  #upper bound
   ) 
   
 ###### live mission map #########
@@ -217,12 +217,6 @@ server <- function(input, output) {
                  lng = ~cwpt$long,
                  label = "Commanded wpt")
   }
-  
-  # for( group in levels(mapSF$gliderName)){
-  #   liveMissionMap <- liveMissionMap %>%
-  #     addPolylines(data = mapSF[mapSF$gliderName==group],
-  #                  color = ~col)
-  # }
 
   # if (gotoN > 0) {
   #   liveMissionMap <- liveMissionMap %>%
