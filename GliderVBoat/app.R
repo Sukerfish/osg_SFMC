@@ -10,9 +10,11 @@
 library(shiny)
 library(shinydashboard)
 library(tidyverse)
+library(lubridate)
 library(leaflet)
 library(leaflet.extras2)
 library(serial)
+library(sf)
 
 source("./scripts/ssv_to_df.R")
 source("./scripts/loadSSV.R")
@@ -20,19 +22,35 @@ source("./scripts/pseudogram.R")
 source("./scripts/gotoLoad.R")
 source("./scripts/gliderGPS_to_dd.R")
 
+icon.start <- makeAwesomeIcon(
+  icon = "flag", markerColor = "green",
+  library = "fa",
+  iconColor = "black"
+)
+
+icon.end <- makeAwesomeIcon(
+  icon = "flag", markerColor = "red",
+  library = "fa",
+  iconColor = "black"
+)
+
+icon.latest <- makeAwesomeIcon(
+  icon = "flag", markerColor = "purple",
+  library = "fa",
+  iconColor = "black"
+)
+
 # conn <- serialConnection("arduino", port="ttyUSB3", mode="9600,n,8,1")
 # open(conn)
 
 # Define UI for application that draws a histogram
-ui <- fluidPage(
+ui <- fillPage(
 
     # Application title
     titlePanel("Glider V Boat"),
-
-    # Sidebar with a slider input for number of bins 
-    box(
-      leafletOutput(outputId = "missionmapLive")
-    ),
+    
+      leafletOutput(outputId = "missionmapLive", 
+                    height = "100%")
 )
 
 # Define server logic required to draw a histogram
@@ -49,49 +67,102 @@ server <- function(input, output) {
   
   autoInvalidate <- reactiveTimer(3000, NULL)
   
-  load(paste0("/echos/", "usf-gansett", "/glider_live.RData"))
+  #get deployed gliders
+  deployedGliders <- read.csv("/echos/deployedGliders.txt", 
+                              sep = "",
+                              header = FALSE)
+  colnames(deployedGliders)[1] = "Name"
+  colnames(deployedGliders)[2] = "ahrCap"
   
-  #live mission map
+  #only process "real" ones
+  deployedGliders <- deployedGliders %>%
+    filter(!str_starts(Name,"#")) #remove any commented lines
+  
+  
+  mapList <- list()
+  for (i in deployedGliders$Name){
+
+    glide <- new.env()
+    #load latest live data file
+    load(paste0("/echos/", i, "/glider_live.RData"), envir = glide)
+    
+    mapList[[i]] <- glide$gliderdf
+    
+  }
+  
+  #fullDF <- data.frame() #initialize
+  fullDF <- bind_rows(mapList, .id = "gliderName")
+  
+  
+  gliderDay <- interval(max(fullDF$m_present_time), #lower bound
+                         max(fullDF$m_present_time) - hours(12)  #upper bound
+  ) 
+  
+###### live mission map #########
+  
   #massage gps data a lot
-  map_sf <- gliderdf %>%
-    select(m_present_time, m_gps_lon, m_gps_lat) %>%
+    mapDF <- fullDF %>%
+    select(m_present_time, m_gps_lon, m_gps_lat, gliderName) %>%
     filter(!is.na(m_gps_lat)) %>%
+    filter(m_present_time %within% gliderDay) %>%
     mutate(latt = format(m_gps_lat, nsmall = 4),
            longg = format(m_gps_lon, nsmall = 4)) %>% #coerce to character keeping zeroes out to 4 decimals
     mutate(lat = gliderGPS_to_dd(latt),
            long = gliderGPS_to_dd(longg)) %>%
     filter(lat >= -90 & lat <= 90) %>% #remove illegal values
-    filter(long >= -180 & long <= 180)
+    filter(long >= -180 & long <= 180) %>%
+    mutate(gliderName = as.factor(gliderName))
+  
+  startDF <- mapDF %>%
+    group_by(gliderName) %>%
+    slice_head()
+  
+  endDF <- mapDF %>%
+    group_by(gliderName) %>%
+    slice_tail()
+  
+  mapSF <- mapDF %>%
+    st_as_sf(coords = c("long", "lat"))  %>%
+    group_by(gliderName) %>% 
+    mutate(seg_end = lead(geometry)) %>%
+    rowwise() %>%
+    mutate(geometry = st_union(geometry, seg_end) %>% st_cast("LINESTRING")) %>%
+    ungroup() %>%
+    select(!starts_with("seg"))
+  
+  pal <- colorFactor("PuOr", mapDF$gliderName)
   
   # if (nrow(toGliderList) > 0){
-  gotoFiles <- toGliderList %>%
-    filter(str_ends(fileName, "goto_l10.ma")) %>%
-    arrange(fileName)
+  # gotoFiles <- toGliderList %>%
+  #   filter(str_ends(fileName, "goto_l10.ma")) %>%
+  #   arrange(fileName)
   
   #get commanded wpt
-  cwpt <- gliderdf %>%
-    select(m_present_time, c_wpt_lat, c_wpt_lon) %>%
+  cwpt <- fullDF %>%
+    select(m_present_time, c_wpt_lat, c_wpt_lon, gliderName) %>%
+    filter(m_present_time %within% gliderDay) %>%
     filter(!is.na(c_wpt_lat)) %>%
     select(!c(m_present_time)) %>%
     format(., nsmall = 4) %>% #coerce to character keeping zeroes out to 4 decimals
-    tail(1)  %>% 
+    group_by(gliderName) %>%
+    slice_tail()  %>% 
     mutate(lat = gliderGPS_to_dd(c_wpt_lat),
            long = gliderGPS_to_dd(c_wpt_lon))
   
-  gotoN <- as.integer(nrow(gotoFiles))
+  # gotoN <- as.integer(nrow(gotoFiles))
   
-  if (gotoN > 0){
-    #build goto history
-    gotoHistory <- list()
-    for (i in 1:gotoN) {
-      gotoHistory[[i]] <- gotoLoad(paste0("/gliders/gliders/", "usf-gansett", "/archive/", gotoFiles[i,]))
-    }
-    
-    #get most recent goto file
-    goto <- as.data.frame(tail(gotoHistory, 1))
-  }
-  
-  liveMissionMap <- leaflet() %>%
+  # if (gotoN > 0){
+  #   #build goto history
+  #   gotoHistory <- list()
+  #   for (i in 1:gotoN) {
+  #     gotoHistory[[i]] <- gotoLoad(paste0("/gliders/gliders/", "usf-gansett", "/archive/", gotoFiles[i,]))
+  #   }
+  #   
+  #   #get most recent goto file
+  #   goto <- as.data.frame(tail(gotoHistory, 1))
+  # }
+
+  liveMissionMap <- leaflet(mapSF) %>%
     #base provider layers
     addWMSTiles("https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}.png",
                 layers = "World_Ocean_Base",
@@ -110,61 +181,67 @@ server <- function(input, output) {
     addLayersControl(baseGroups = c('Ocean Basemap', 'GEBCO', 'World Imagery'),
                      overlayGroups = c('Ocean Reference')) %>%
     addPolylines(
-      lat = map_sf$lat,
-      lng = map_sf$long,
       color = "grey",
       weight = 3,
       opacity = 1,
     ) %>%
     #timestamps for surfacings
-    addCircles(data = map_sf,
-               lat = map_sf$lat,
-               lng = map_sf$long,
-               color = "gold",
-               popup = map_sf$m_present_time,
+    addCircles(data = mapDF,
+               lat = mapDF$lat,
+               lng = mapDF$long,
+               color = ~pal(mapDF$gliderName),
+               popup = mapDF$m_present_time,
                weight = 3
     ) %>%
     #start marker
-    addMarkers(
-      lat = map_sf[1, "lat"],
-      lng = map_sf[1, "long"],
-      label = "Initial position"
+    addAwesomeMarkers(data = startDF,
+      lat = ~lat,
+      lng = ~long,
+      label = "Initial position",
+      icon = icon.start
     ) %>%
     #end marker
-    addMarkers(
-      lat = map_sf[nrow(map_sf), "lat"],
-      lng = map_sf[nrow(map_sf), "long"],
-      label = "Latest position"
+    addAwesomeMarkers(data = endDF,
+               lat = ~lat,
+               lng = ~long,
+      label = "Latest position",
+      icon = icon.latest
     ) %>%
     addMeasure(primaryLengthUnit = "kilometers",
                secondaryLengthUnit = "miles") %>%
     addSimpleGraticule(interval = 2.5)
-  
+
   if (nrow(cwpt > 0)) {
     liveMissionMap <- liveMissionMap %>%
-      addMarkers(lat = cwpt$lat,
-                 lng = cwpt$long,
+      addMarkers(lat = ~cwpt$lat,
+                 lng = ~cwpt$long,
                  label = "Commanded wpt")
   }
   
-  if (gotoN > 0) {
-    liveMissionMap <- liveMissionMap %>%
-      addCircles(lat = goto$lat,
-                 lng = goto$long,
-                 radius = goto$rad,
-                 label = goto$comment) %>%
-      addArrowhead(lat = goto$lat,
-                   lng = goto$long, color="blue",
-                   options = arrowheadOptions(
-                     #yawn = 60,
-                     size = '10%',
-                     frequency = 'allvertices',
-                     fill = TRUE,
-                     opacity=0.5, stroke=TRUE, fillOpacity=0.4,
-                     proportionalToTotal = TRUE,
-                     offsets = NULL,
-                     perArrowheadOptions = NULL))
-  }
+  # for( group in levels(mapSF$gliderName)){
+  #   liveMissionMap <- liveMissionMap %>%
+  #     addPolylines(data = mapSF[mapSF$gliderName==group],
+  #                  color = ~col)
+  # }
+
+  # if (gotoN > 0) {
+  #   liveMissionMap <- liveMissionMap %>%
+  #     addCircles(lat = goto$lat,
+  #                lng = goto$long,
+  #                radius = goto$rad,
+  #                label = goto$comment) %>%
+  #     addArrowhead(lat = goto$lat,
+  #                  lng = goto$long, color="blue",
+  #                  options = arrowheadOptions(
+  #                    #yawn = 60,
+  #                    size = '10%',
+  #                    frequency = 'allvertices',
+  #                    fill = TRUE,
+  #                    opacity=0.5, stroke=TRUE, fillOpacity=0.4,
+  #                    proportionalToTotal = TRUE,
+  #                    offsets = NULL,
+  #                    perArrowheadOptions = NULL))
+  # }
   #setView(lat = 27.75, lng = -83, zoom = 6)
   
   output$missionmapLive <- renderLeaflet({
