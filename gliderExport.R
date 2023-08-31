@@ -32,11 +32,11 @@ for (i in deployedGliders$Name){
     
     segdf <- gliderdf %>%
       filter(segment == j) %>%
-      select(any_of(needVars))
-      #mutate(m_present_time = as.numeric(m_present_time))
+      select(any_of(needVars)) %>%
+      mutate(m_present_time = as.numeric(m_present_time))
     
-    write.table(segdf, 
-                file = paste0("/echos/segments/", i, "/", seg, ".ssv"), 
+    write.csv(segdf, 
+                file = paste0("/echos/segments/", i, "/", seg, ".csv"), 
                 row.names = FALSE, col.names = TRUE, quote = FALSE)
     
   }
