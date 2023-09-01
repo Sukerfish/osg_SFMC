@@ -86,6 +86,8 @@ for (i in deployedGliders$Name){
         
         yodat <- head(yop, 1)
         
+        #write new file if not already present
+        if (!file.exists(paste0("/echos/gvp/", i, "/", l, "/", k, "_yo_", y, ".asvp"))){
         #format metadata for header in .asvp format
         asvp <- paste0("( SoundVelocity 1.00 ", y, " ", strftime(Sys.time(), format = "%Y%m%d%H%M"), " ", #file ID/creation time
                            round(yodat$p_lat, 7), " ", round(yodat$p_lon, 7), " ", #profile lat/lon
@@ -100,7 +102,10 @@ for (i in deployedGliders$Name){
                    round(., 4), 
                  paste0("/echos/gvp/", i, "/", l, "/", k, "_yo_", y, ".asvp"), header = asvp, 
                  f = write.table, row.names = FALSE, col.names = FALSE)
+        }
         
+        #write new file if not already present
+        if (!file.exists(paste0("/echos/gvp/", i, "/", l, "/", k, "_yo_", y, ".edf"))){
         #format metadata for header in .edf format
           write(c(paste0("Date of Launch: ", strftime(yodat$p_time, format = "%m/%d/%Y", tz = "UTC")),
                   paste0("Time of Launch: ", strftime(yodat$p_time, format = "%H:%M:%S", tz = "UTC")),
@@ -117,6 +122,7 @@ for (i in deployedGliders$Name){
                    round(., 4), 
                    file = paste0("/echos/gvp/", i, "/", l, "/", k, "_yo_", y, ".edf"), 
                    row.names = FALSE, col.names = FALSE, append = TRUE, quote = FALSE)
+        }
       }
         
     }
@@ -124,35 +130,3 @@ for (i in deployedGliders$Name){
   
   
 }
-  
-
-  # plot <- 
-  #   ggplot(
-  #     data = out[[segment]],
-  #     aes(x = osg_soundvel1,
-  #         y = osg_i_depth,
-  #         color = cast,
-  #         #shape = variable
-  #     )) +
-  #   geom_point_interactive(size = 3,
-  #                          pch = 1) +
-  #   # scale_color_gradient(
-  #   #   low = "red",
-  #   #   high = "blue",
-  #   # ) +
-  #   #coord_cartesian(xlim = rangefli$x, ylim = rangefli$y, expand = FALSE) +
-  #   scale_y_reverse() +
-  #   theme_bw() +
-  #   labs(title = paste0(segment, " SVP"),
-  #        x = "Sound Velocity (m/s)",
-  #        y = "Depth (m)",
-  #        #color = "Time",
-  #        #caption = "Red = older ... Blue = more recent",
-  #        #caption = "<img src='./www/cms_horiz.png' width='200'/>"
-  #   ) +
-  #   theme(plot.title = element_text(size = 32),
-  #         axis.title = element_text(size = 16),
-  #         axis.text = element_text(size = 12),
-  #         plot.caption = element_markdown(),
-  #         #legend.position ="none",
-  #   ) 
