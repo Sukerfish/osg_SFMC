@@ -15,8 +15,8 @@ deployedGliders <- deployedGliders %>%
   filter(!str_starts(Name,"#")) #remove any commented lines
 
 needVars <- c("m_present_time", "m_depth", "m_altitude", "m_water_depth", "m_pitch", "m_roll",
-              "m_gps_lat", "m_gps_lon", "m_lat", "m_lon", "sci_water_pressure", "m_speed",
-              "sci_water_cond", "sci_water_temp", "sci_bbfl2s_chlor_scaled", "sci_flbbcd_chlor_units",
+              "m_gps_lat", "m_gps_lon", "m_lat", "m_lon", "m_speed", "i_lat", "i_lon",
+              "sci_water_pressure", "sci_water_cond", "sci_water_temp", "sci_bbfl2s_chlor_scaled", "sci_flbbcd_chlor_units",
               "sci_oxy3835_oxygen", "sci_oxy4_oxygen", "sci_rbrctd_salinity_00")
 
 #initialize list
