@@ -16,6 +16,8 @@ deployedGliders <- deployedGliders %>%
 #gliders_live <- list()
 for (i in deployedGliders$Name){
   
+  rm(list = setdiff(ls(), c("i", "deployedGliders")))
+  
   #load latest live data file
   load(paste0("/echos/", i, "/glider_live.RData"))
   
