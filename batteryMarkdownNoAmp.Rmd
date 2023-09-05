@@ -84,7 +84,7 @@ daysDep <- (min(gliderdf$m_present_time) %--% max(gliderdf$m_present_time))/days
 
 Days deployed: `r round(daysDep, 2)`
 
-Approximate time until 10% abort level: `r recoDays` days (calculated based on standard G1 voltage curve)
+Approximate time until 11V threshold: `r recoDays` days (calculated based on standard G1 voltage curve)
 
 ------------------------------------------------------------------------
 ```{asis, echo = maxRoll}
