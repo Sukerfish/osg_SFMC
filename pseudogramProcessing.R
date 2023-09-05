@@ -11,7 +11,7 @@ library(echogram)
 gliderName <- "usf-stella"
 load(paste0("/echos/", gliderName, "/glider_live.RData"))
 
-logo <- grid::rasterGrob(readPNG("./www/Classic-Left-CMS-Stacked-1000.png"), interpolate = TRUE, 
+logo <- grid::rasterGrob(readPNG("./www/cms_stacked.png"), interpolate = TRUE, 
                          width=unit(3,'in'),
                          x = unit(1,"npc"), y = unit(1,"npc"),
                          hjust = 6.4, vjust = 10)
@@ -20,6 +20,8 @@ logo <- grid::rasterGrob(readPNG("./www/Classic-Left-CMS-Stacked-1000.png"), int
 for (i in echoListraw$value){
 
   print(i)
+  
+  if (!file.exists(paste0("./pseudograms/", i, ".png"))){
   # process into long format for plotting
   ehunk <- pseudogram(paste0("/echos/layers/", i, ".ssv"),
                       paste0("/echos/depths/", i, ".ssv"))
@@ -60,6 +62,7 @@ for (i in echoListraw$value){
          width = 21,
          height = 9)
   
+  }
 }
 
 ### ek runtimes ###
