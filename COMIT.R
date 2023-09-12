@@ -7,6 +7,7 @@ library(egg)
 library(geosphere)
 library(ggrepel)
 library(leaflet)
+library(cmocean)
 
 source("./COMIT/profilePlot.R")
 
@@ -162,7 +163,9 @@ plots[[i]] <-
   #geom_hline(yintercept = 0) +
   xlim(startSam, endSam) +
   scale_y_reverse() +
-  scale_colour_viridis_c(limits = c(minSV, maxSV)) +
+  scale_color_cmocean(name = "speed",
+                      limits = c(minSV, maxSV)) +
+  # scale_colour_viridis_c(limits = c(minSV, maxSV)) +
   geom_point(data = wf,
              aes(y = m_water_depth),
              size = 0.3,
@@ -177,10 +180,11 @@ plots[[i]] <-
        #         <img src='./www/cms_horiz.png' width='200'/>",
        color = "Sound speed (m/s)",
        y = "Depth (m)",
-       x = "Date/Time (UTC)")
+       x = "Date/Time (UTC)") +
   # theme_osg() + 
-  # geom_vline(xintercept = as_datetime(max(outs$time_point)),
-  #            linewidth = 1)
+  geom_vline(xintercept = as_datetime(max(outs$time_point)),
+             linewidth = 1,
+             color = "red")
 
 }
 
@@ -205,12 +209,12 @@ zlot <- wrap_elements(fullPlot) +
   )
 plot(zlot)
 
-ggsave(filename = "GliderSoundSpeedFull.png",
-       plot = zlot,
-       device = "png",
-       path = "./COMIT",
-       width = 16,
-       height = 9)
+# ggsave(filename = "GliderSoundSpeedFullwithLine.png",
+#        plot = zlot,
+#        device = "png",
+#        path = "./COMIT",
+#        width = 16,
+#        height = 9)
 
 ### yo plot
 yoPlots <- list()
@@ -276,11 +280,12 @@ profilePlot <- ggplot(data = yoDF %>%
   scale_color_manual(values = c("blue", "gold", "black")) +
   #scale_colour_viridis_d(option = "cividis") +
 
-  labs(title = paste0("Single station profiles"),
-       caption = "Calculated using Coppens <i>et al.</i> (1981)
-               <br>
-               <br>
-               <img src='./www/cms_horiz.png' width='200'/>",
+  labs(#title = paste0("Single station profiles"),
+    subtitle = "Single station profiles (at red line on left panel)",
+       # caption = "Calculated using Coppens <i>et al.</i> (1981)
+       #         <br>
+       #         <br>
+       #         <img src='./www/cms_horiz.png' width='200'/>",
        color = "Glider name",
        linetype = "Glider state",
        y = "Depth (m)",
@@ -322,12 +327,12 @@ nextPlot <- (qlotz | profilePlot) +
 
 plot(nextPlot)
 
-ggsave(filename = "paneledProfiles.png",
-       plot = nextPlot,
-       device = "png",
-       path = "./COMIT",
-       width = 16,
-       height = 9)
+# ggsave(filename = "paneledProfiles.png",
+#        plot = nextPlot,
+#        device = "png",
+#        path = "./COMIT",
+#        width = 16,
+#        height = 9)
 
 #### other sci data ####
 # sciVars <- c("sci_water_cond", 
@@ -410,29 +415,41 @@ waterPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, sci_water_tem
     axis.title.y = element_blank()
   ) +
   xlim(startSam, endSam) +
-  scale_color_viridis_c(limits = c(min(sci_water$sci_water_temp, na.rm = TRUE),
-                                   max(sci_water$sci_water_temp, na.rm = TRUE))) +
+  # scale_color_viridis_c(limits = c(min(sci_water$sci_water_temp, na.rm = TRUE),
+  #                                  max(sci_water$sci_water_temp, na.rm = TRUE))) +
+  scale_color_cmocean(name = "thermal",
+                      limits = c(min(sci_water$sci_water_temp, na.rm = TRUE),
+                                 max(sci_water$sci_water_temp, na.rm = TRUE))) +
   labs(subtitle = g,
        y = "Depth (m)",
-       x = "Date/Time (UTC)")
+       x = "Date/Time (UTC)",
+       color = "Water temperature (°C)")
 
 salPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, osg_salinity) +
   theme_osg() +
       labs(subtitle = g,
            y = "Depth (m)",
-           x = "Date/Time (UTC)") +
+           x = "Date/Time (UTC)",
+           color = "Salinity                  ") + #padding for legend alignment
   xlim(startSam, endSam) +
-  scale_color_viridis_c(limits = c(min(sci_water$osg_salinity, na.rm = TRUE),
-                                   max(sci_water$osg_salinity, na.rm = TRUE)))
+  scale_color_cmocean(name = "haline",
+                      limits = c(min(sci_water$osg_salinity, na.rm = TRUE),
+                                 max(sci_water$osg_salinity, na.rm = TRUE)))
+  # scale_color_viridis_c(limits = c(min(sci_water$osg_salinity, na.rm = TRUE),
+  #                                  max(sci_water$osg_salinity, na.rm = TRUE)))
 
 svPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, osg_soundvel1) +
   theme_osg() +
       labs(subtitle = g,
            y = "Depth (m)",
-           x = "Date/Time (UTC)") +
+           x = "Date/Time (UTC)",
+           color = "Sound speed (m/s)     ") +
   xlim(startSam, endSam) +
-  scale_color_viridis_c(limits = c(min(sci_water$osg_soundvel1, na.rm = TRUE),
-                                   max(sci_water$osg_soundvel1, na.rm = TRUE)))
+  scale_color_cmocean(name = "speed",
+                      limits = c(min(sci_water$osg_soundvel1, na.rm = TRUE),
+                                 max(sci_water$osg_soundvel1, na.rm = TRUE)))
+  # scale_color_viridis_c(limits = c(min(sci_water$osg_soundvel1, na.rm = TRUE),
+  #                                  max(sci_water$osg_soundvel1, na.rm = TRUE)))
 
 scidf <- sci_flbb %>%
   filter(gliderName == g)
@@ -443,9 +460,12 @@ bbPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, sci_flbbcd_bb_un
            y = "Depth (m)",
            x = "Date/Time (UTC)") +
   xlim(startSam, endSam) +
-  scale_color_viridis_c(limits = c(min(sci_flbb$sci_flbbcd_bb_units, na.rm = TRUE),
+  scale_color_cmocean(limits = c(min(sci_flbb$sci_flbbcd_bb_units, na.rm = TRUE),
                                    max(sci_flbb$sci_flbbcd_bb_units, na.rm = TRUE)),
-                        option = "magma")
+                        name = "turbid")
+  # scale_color_viridis_c(limits = c(min(sci_flbb$sci_flbbcd_bb_units, na.rm = TRUE),
+  #                                  max(sci_flbb$sci_flbbcd_bb_units, na.rm = TRUE)),
+  #                       option = "magma")
 
 flPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, sci_flbbcd_chlor_units) +
   theme_osg() +
@@ -453,9 +473,12 @@ flPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, sci_flbbcd_chlor
            y = "Depth (m)",
            x = "Date/Time (UTC)") +
   xlim(startSam, endSam) +
-  scale_color_viridis_c(limits = c(min(sci_flbb$sci_flbbcd_chlor_units, na.rm = TRUE),
-                                   max(sci_flbb$sci_flbbcd_chlor_units, na.rm = TRUE)),
-                        option = "magma")
+  # scale_color_viridis_c(limits = c(min(sci_flbb$sci_flbbcd_chlor_units, na.rm = TRUE),
+  #                                  max(sci_flbb$sci_flbbcd_chlor_units, na.rm = TRUE)),
+  #                       option = "magma")
+scale_color_cmocean(limits = c(min(sci_flbb$sci_flbbcd_chlor_units, na.rm = TRUE),
+                                 max(sci_flbb$sci_flbbcd_chlor_units, na.rm = TRUE)),
+                      name = "algae")
 
 cdomPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, sci_flbbcd_cdom_units) +
   theme_osg() +
@@ -463,9 +486,12 @@ cdomPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, sci_flbbcd_cdo
            y = "Depth (m)",
            x = "Date/Time (UTC)") +
   xlim(startSam, endSam) +
-  scale_color_viridis_c(limits = c(min(sci_flbb$sci_flbbcd_cdom_units, na.rm = TRUE),
+  scale_color_cmocean(limits = c(min(sci_flbb$sci_flbbcd_cdom_units, na.rm = TRUE),
                                    max(sci_flbb$sci_flbbcd_cdom_units, na.rm = TRUE)),
-                        option = "magma")
+                        name = "matter")
+  # scale_color_viridis_c(limits = c(min(sci_flbb$sci_flbbcd_cdom_units, na.rm = TRUE),
+  #                                  max(sci_flbb$sci_flbbcd_cdom_units, na.rm = TRUE)),
+  #                       option = "magma")
 
 scidf <- sci_oxy %>%
   filter(gliderName == g)
@@ -476,9 +502,12 @@ oxyPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, sci_oxy3835_oxy
            y = "Depth (m)",
            x = "Date/Time (UTC)") +
   xlim(startSam, endSam) +
-  scale_color_viridis_c(limits = c(min(sci_oxy$sci_oxy3835_oxygen, na.rm = TRUE),
+  scale_color_cmocean(limits = c(min(sci_oxy$sci_oxy3835_oxygen, na.rm = TRUE),
                                    max(sci_oxy$sci_oxy3835_oxygen, na.rm = TRUE)),
-                        option = "inferno")
+                        name = "oxy")
+  # scale_color_viridis_c(limits = c(min(sci_oxy$sci_oxy3835_oxygen, na.rm = TRUE),
+  #                                  max(sci_oxy$sci_oxy3835_oxygen, na.rm = TRUE)),
+  #                       option = "inferno")
 
 }
           
@@ -509,12 +538,12 @@ oxyPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, sci_oxy3835_oxy
   
   plot(allFL)
   
-  ggsave(filename = "flbbcdProfiles.png",
-         plot = allFL,
-         device = "png",
-         path = "./COMIT",
-         width = 16,
-         height = 9)
+  # ggsave(filename = "flbbcdProfiles.png",
+  #        plot = allFL,
+  #        device = "png",
+  #        path = "./COMIT",
+  #        width = 16,
+  #        height = 9)
   
   oxyAll <- wrap_plots(oxyPlots, ncol = 2) + 
     plot_layout(guides = "collect") +
@@ -524,12 +553,12 @@ oxyPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, sci_oxy3835_oxy
                <img src='./www/cms_horiz.png' width='200'/>") &
     theme_osg()
   
-  ggsave(filename = "oxy3835Profiles.png",
-         plot = oxyAll,
-         device = "png",
-         path = "./COMIT",
-         width = 16,
-         height = 9)
+  # ggsave(filename = "oxy3835Profiles.png",
+  #        plot = oxyAll,
+  #        device = "png",
+  #        path = "./COMIT",
+  #        width = 16,
+  #        height = 9)
   
   waterAll <- wrap_plots(waterPlots, ncol = 2) +
     plot_layout(guides = "collect") +
@@ -560,12 +589,12 @@ oxyPlots[[g]] <- profilePlot(scidf, m_present_time, osg_i_depth, sci_oxy3835_oxy
   
  plot(physAll)
  
- ggsave(filename = "tempSVSalProfiles.png",
-        plot = physAll,
-        device = "png",
-        path = "./COMIT",
-        width = 16,
-        height = 9)
+ # ggsave(filename = "tempSVSalProfiles.png",
+ #        plot = physAll,
+ #        device = "png",
+ #        path = "./COMIT",
+ #        width = 16,
+ #        height = 9)
  
  
 #### map! ####
