@@ -84,6 +84,8 @@ daysDep <- (min(gliderdf$m_present_time) %--% max(gliderdf$m_present_time))/days
 
 Days deployed: `r round(daysDep, 2)`
 
+Battery voltage last 24hrs: `r round(mean(dailydf$m_battery, na.rm = TRUE), 2)`
+
 Approximate time until 10% abort level: `r recoDays` days (calculated using 72hr usage)
 
 Total mission usage: `r round(ahrAllday, 2)` ahr/day
