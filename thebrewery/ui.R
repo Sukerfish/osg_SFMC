@@ -14,65 +14,24 @@
              dashboardHeader(title = "The Brewery"),
              dashboardSidebar(
                sidebarMenu(id = "tabs",
-                 menuItem("Piloting Dashboard", 
-                          tabName = "dashboard", 
-                          icon = icon("dashboard")),
-                 menuItem("Current Mission Data", 
-                          tabName = "currMissData", 
-                          icon = icon("plane")),
-                 menuItem("Archived Mission Data",
-                          icon = icon("calendar"),
-                          expandedName = "oldData",
-                          menuSubItem("View Data", tabName = "archMissData"),
+                 menuItem("Piloting Dashboard", startExpanded = TRUE,
+                          icon = icon("dashboard"),
+                          radioButtons(inputId = "gliderSelect",
+                                       label = "Pick Your Glider",
+                                       choices = deployedGliders$Name,
+                                       selected = tail(deployedGliders$Name,1)),
                           hr(),
-                          actionButton(
-                            inputId = "load",
-                            label = "Load Mission Data",
-                            icon("plane"),
-                            style =
-                              "color: #fff; background-color: #963ab7; border-color: #2e6da4"
-                          ),
-                          selectInput(
-                            inputId = "mission",
-                            label = "Which mission data to display",
-                            choices = NULL,
-                            selected =  NULL
-                          ),
-                          br(),
-                          dateInput(
-                            inputId = "date1",
-                            label = "Start Date:",
-                            value = NULL,
-                            min = NULL,
-                            max = NULL,
-                            format = "mm/dd/yy"
-                          ),
-                          dateInput(
-                            inputId = "date2",
-                            label = "End Date:",
-                            value = NULL,
-                            min = NULL,
-                            max = NULL,
-                            format = "mm/dd/yy"
-                          ),
-                          numericInput(
-                            inputId = "min_depth",
-                            label = "Depth Minimum",
-                            value = 3,
-                            min = 0,
-                            max = 1000
-                          ),
-                          numericInput(
-                            inputId = "max_depth",
-                            label = "Depth Maximum",
-                            value = 150,
-                            min = 0,
-                            max = 1000
-                          ),
-                          hr()
-                          ),
-                 menuItem("Data Import", 
-                          tabName = "dataImport", 
+                          menuSubItem("Dashboard", tabName = "dashboard"),
+                          menuSubItem("Routing", tabName = "routing")),
+                 menuItem("Current Mission Data",
+                          tabName = "currMissData",
+                          icon = icon("plane")),
+                 menuItem("Full Mission Data",
+                          icon = icon("calendar"),
+                          tabName = "fullMissData"),
+                          
+                 menuItem("Data Import",
+                          tabName = "dataImport",
                           icon = icon("th"))
                )
              ),
@@ -80,445 +39,90 @@
                tags$div(tags$style(HTML( ".dropdown-menu{z-index:10000 !important;}"))),
                tabItems(
                  tabItem(tabName = "dashboard",
-                         fluidRow(
-                         box(
-                           leafletOutput(outputId = "missionmapLive")
-                           ),
-                         box(
-                           slickROutput("img")
-                         ),
-                         # box(
-                         #   plotOutput(
-                         #     outputId = "battplot",
-                         #   ) %>% withSpinner(color="#0dc5c1")
-                         # ),
-                         ),
-                         fluidRow(
-                           valueBoxOutput(
-                             "recoBox",
-                             width = 2),
-                         valueBoxOutput(
-                                        "LDBox",
-                                        width = 2),
-                         valueBoxOutput(
-                                        "battBox",
-                                        width = 2),
-                         valueBoxOutput(
-                           "powerBox1",
-                           width = 2),
-                         valueBoxOutput(
-                           "powerBox3",
-                           width = 2),
-                         valueBoxOutput(
-                           "powerBoxall",
-                           width = 2),
-                         ),
-                         # fluidRow(
-                         #   box(
-                         #     plotOutput(
-                         #       outputId = "battplot",
-                         #     ),
-                         #   ),
-                         # ),
+                         gliderDashboard_ui("display")
                  ),
                  tabItem(tabName = "currMissData",
-                         fluidPage(
-                           tabsetPanel(
-                             tabPanel(title = "Piloting",
-                                      column(2,
-                                             wellPanel(h4("Data Filtering"),
-                                                       dateInput(
-                                                         inputId = "date1Live",
-                                                         label = "Start Date:",
-                                                         value = NULL,
-                                                         min = NULL,
-                                                         max = NULL,
-                                                         format = "mm/dd/yy"
-                                                       ),
-                                                       dateInput(
-                                                         inputId = "date2Live",
-                                                         label = "End Date:",
-                                                         value = NULL,
-                                                         min = NULL,
-                                                         max = NULL,
-                                                         format = "mm/dd/yy"
-                                                       ),
-                                                       # numericInput(
-                                                       #   inputId = "min_depthLive",
-                                                       #   label = "Depth Minimum (bar)",
-                                                       #   value = NULL,
-                                                       #   min = 0,
-                                                       #   max = 1000
-                                                       # ),
-                                                       # numericInput(
-                                                       #   inputId = "max_depthLive",
-                                                       #   label = "Depth Maximum (bar)",
-                                                       #   value = NULL,
-                                                       #   min = 0,
-                                                       #   max = 1000
-                                                       # ),
-                                                       # checkboxGroupInput(
-                                                       #   inputId = "status",
-                                                       #   label = "Dive only?",
-                                                       #   choices = c("dive" = "dive",
-                                                       #               "climb" = "climb"),
-                                                       #   selected = c("dive")
-                                                       # )
-                                             )),
-                                      column(10,
-                                             #mainPanel(#science variable settings
-                                             tabsetPanel(
-                                               # tabPanel(title = "Map",
-                                               #          leafletOutput(outputId = "missionmapLive",
-                                               #                        height = "600px")),
-                                               tabPanel(title = "Science Data",
-                                                        column(3,
-                                                               wellPanel(
-                                                                 selectInput(
-                                                                   inputId = "display_varLive",
-                                                                   label = "Which science variable to display",
-                                                                   choices = NULL
-                                                                 ),
-                                                                 h4("Color Scale Override"),
-                                                                 numericInput(inputId = "minLive",
-                                                                              label = "Sci Axis Minimum",
-                                                                              NULL),
-                                                                 numericInput(inputId = "maxLive",
-                                                                              label = "Sci Axis Maximum",
-                                                                              NULL),
-                                                                 #downloadButton('downloadSciPlot')
-                                                               )),
-                                                        column(
-                                                          9,
-                                                          # h4("Brush and double-click to zoom (double-click again to reset)"),
-                                                          plotOutput(
-                                                            outputId = "sciPlotLive",
-                                                            # dblclick = "sciPlot_dblclick",
-                                                            # brush = brushOpts(id = "sciPlot_brush",
-                                                            #                   resetOnNew = TRUE),
-                                                            # height = "600px"
-                                                          ) %>% withSpinner(color="#0dc5c1")
-                                                        )
-                                               ),
-                                               #flight variable settings
-                                               tabPanel(title = "Flight Data",
-                                                        fluidRow(
-                                                          column(3,
-                                                                 wellPanel(
-                                                                   #   selectInput(
-                                                                   #     "flight_var",
-                                                                   #     "Which flight variable(s) to display",
-                                                                   #     choices = c(flightvars),
-                                                                   #     selected = c("m_roll")
-                                                                   #   )
-                                                                   # )),
-                                                                   selectizeInput(
-                                                                     inputId = "flight_varLive",
-                                                                     label = "Which flight variable(s) to display",
-                                                                     choices = NULL,
-                                                                     multiple = TRUE,
-                                                                     options = list(plugins = list('remove_button'))
-                                                                   ),
-                                                                   # downloadButton('downloadFliPlot'),
-                                                                   # verbatimTextOutput("summary")
-                                                                 )),
-                                                          column(
-                                                            9,
-                                                            # h4("Brush and double-click to zoom (double-click again to reset)"),
-                                                            plotOutput(
-                                                              outputId = "fliPlotLive",
-                                                              # dblclick = "fliPlot_dblclick",
-                                                              # brush = brushOpts(id = "fliPlot_brush",
-                                                              #                   resetOnNew = TRUE),
-                                                              # height = "600px"
-                                                            ) %>% withSpinner(color="#0dc5c1")
-                                                          )
-                                                        )),
-                                               #sound velocity tab
-                                               tabPanel(title = "Derived Data",
-                                                        fluidRow(
-                                                          column(3,
-                                                                 wellPanel(
-                                                                   selectInput(inputId = "derivedTypeLive",
-                                                                               label = "Which type of plot?",
-                                                                               NULL),
-                                                                   # numericInput(inputId = "derivedmaxLive",
-                                                                   #              label = "Axis Maximum",
-                                                                   #              NULL),
-                                                                   #downloadButton('downloadSouPlot')
-                                                                 )),
-                                                          column(9,
-                                                                 plotOutput(outputId = "tsPlotLive",
-                                                                            #height = "600px"
-                                                                 )
-                                                          )
-                                                        ),),
-                                               #selected = "Map"
-                                             )
-                                      )
-                             ),
-                             tabPanel(title = "Pseudograms",
-                                      column(2,
-                                             wellPanel(
-                                               selectInput(
-                                                 inputId = "echo",
-                                                 label = "Which pseudogram to display",
-                                                 choices = NULL,
-                                                 selected =  NULL
-                                               ),
-                                               selectInput(
-                                                 inputId = "echoColor",
-                                                 label = "Color scheme",
-                                                 choices = c("EK", "magma", "viridis"),
-                                                 selected =  "viridis"
-                                               ),
-                                               #downloadButton('downloadEchoPlot')
-                                             )),
-                                      column(10,
-                                             plotOutput(
-                                               outputId = "echoPlot",
-                                               #dblclick = "fliPlot_dblclick",
-                                               #brush = brushOpts(id = "fliPlot_brush",
-                                               #                  resetOnNew = TRUE),
-                                               #height = "600px"
-                                             ),
-                                             hr(),
-                                             column(3,
-                                                    actionButton(
-                                                      inputId = "oldestPgram",
-                                                      label = "Oldest",
-                                                      #icon("boat"),
-                                                      style =
-                                                        "color: #fff; background-color: #000000; border-color: #2e6da4"
-                                                    ), align = "center"),
-                                             column(3,
-                                                    actionButton(
-                                                      inputId = "prevPgram",
-                                                      label = "Previous",
-                                                      #icon("boat"),
-                                                      style =
-                                                        "color: #fff; background-color: #000000; border-color: #2e6da4"
-                                                    ), align = "center"),
-                                             column(3,
-                                                    actionButton(
-                                                      inputId = "nextPgram",
-                                                      label = "Next",
-                                                      #icon("boat"),
-                                                      style =
-                                                        "color: #fff; background-color: #000000; border-color: #2e6da4"
-                                                    ), align = "center"),
-                                             column(3,
-                                                    actionButton(
-                                                      inputId = "latestPgram",
-                                                      label = "Latest",
-                                                      #icon("boat"),
-                                                      style =
-                                                        "color: #fff; background-color: #000000; border-color: #2e6da4"
-                                                    ), align = "center"),
-                                      )),
-                             tabPanel(title = "Pseudotimegram",
-                                      column(2,
-                                             wellPanel(
-                                               actionButton(
-                                                 inputId = "fullecho2",
-                                                 label = "Plot!",
-                                                 #icon("boat"),
-                                                 style =
-                                                   "color: #fff; background-color: #963ab7; border-color: #2e6da4"
-                                               ),
-                                               dateRangeInput("echohistrange2", "Date range:",
-                                                              start  = NULL,
-                                                              end    = NULL,
-                                                              min    = NULL,
-                                                              max    = NULL,
-                                                              format = "mm/dd/yy",
-                                                              separator = " - "),
-                                               sliderInput("echohour2",
-                                                           "Hour:",
-                                                           min = 0,  max = 24, value = c(0, 24)),
-                                               selectInput(
-                                                 inputId = "echoColor2",
-                                                 label = "Color scheme",
-                                                 choices = c("EK", "magma", "viridis"),
-                                                 selected =  "viridis"
-                                               ),
-                                               #downloadButton('downloadEchoHist2')
-                                             )),
-                                      column(10,
-                                             plotOutput(
-                                               outputId = "echoTime",
-                                               #dblclick = "fliPlot_dblclick",
-                                               #brush = brushOpts(id = "fliPlot_brush",
-                                               #                  resetOnNew = TRUE),
-                                               #height = "600px"
-                                             ) %>% withSpinner(color="#0dc5c1")
-                                      )),
-                             tabPanel(title = "Frequency Polygon",
-                                      column(2,
-                                             wellPanel(
-                                               actionButton(
-                                                 inputId = "fullecho",
-                                                 label = "Plot!",
-                                                 #icon("boat"),
-                                                 style =
-                                                   "color: #fff; background-color: #963ab7; border-color: #2e6da4"
-                                               ),
-                                               dateRangeInput("echohistrange", "Date range:",
-                                                              start  = NULL,
-                                                              end    = NULL,
-                                                              min    = NULL,
-                                                              max    = NULL,
-                                                              format = "mm/dd/yy",
-                                                              separator = " - "),
-                                               numericInput(
-                                                 inputId = "depthbin",
-                                                 label = "Depth Bin Size",
-                                                 value = 3,
-                                                 min = 1,
-                                                 max = 1000
-                                               ),
-                                               sliderInput("echohour",
-                                                           "Hour:",
-                                                           min = 0,  max = 24, value = c(0, 24)),
-                                               #downloadButton('downloadEchoHist')
-                                             )),
-                                      column(10,
-                                             plotOutput(
-                                               outputId = "echoHist",
-                                               #dblclick = "fliPlot_dblclick",
-                                               #brush = brushOpts(id = "fliPlot_brush",
-                                               #                  resetOnNew = TRUE),
-                                               #height = "600px"
-                                             ) %>% withSpinner(color="#0dc5c1")
-                                      ))
-                           ))
-                         
-                         
-                         
+                         currentData_ui("curDisplay"),
                          ),
-                 tabItem(tabName = "archMissData",
-                         fluidPage(
-                           column(12,
-                                  #mainPanel(#science variable settings
-                                  tabBox(
-                                    width = 12,
-                                    tabPanel(title = "Map",
-                                             leafletOutput(outputId = "missionmap",
-                                                           height = "600px")),
-                                    tabPanel(title = "Science Data",
-                                             column(3,
-                                                    wellPanel(
-                                                      selectInput(
-                                                        inputId = "display_var",
-                                                        label = "Which science variable to display",
-                                                        choices = NULL
-                                                      ),
-                                                      #title = "Color Scale Override",
-                                                      numericInput(inputId = "min",
-                                                                   label = "Sci Axis Minimum",
-                                                                   NULL),
-                                                      numericInput(inputId = "max",
-                                                                   label = "Sci Axis Maximum",
-                                                                   NULL),
-                                                      downloadButton('downloadSciPlot')
-                                                    )),
-                                             column(
-                                               9,
-                                               #"Brush and double-click to zoom (double-click again to reset)",
-                                               plotOutput(
-                                                 outputId = "sciPlot",
-                                                 dblclick = "sciPlot_dblclick",
-                                                 brush = brushOpts(id = "sciPlot_brush",
-                                                                   resetOnNew = TRUE),
-                                                 height = "600px"
-                                               ) %>% withSpinner(color="#0dc5c1")
-                                             )
-                                    ),
-                                    #flight variable settings
-                                    tabPanel(title = "Flight Data",
-                                             fluidRow(
-                                               column(3,
-                                                      wellPanel(
-                                                        #   selectInput(
-                                                        #     "flight_var",
-                                                        #     "Which flight variable(s) to display",
-                                                        #     choices = c(flightvars),
-                                                        #     selected = c("m_roll")
-                                                        #   )
-                                                        # )),
-                                                        selectizeInput(
-                                                          inputId = "flight_var",
-                                                          label = "Which flight variable(s) to display",
-                                                          choices = NULL,
-                                                          multiple = TRUE,
-                                                          options = list(plugins = list('remove_button'))
-                                                        ),
-                                                        downloadButton('downloadFliPlot'),
-                                                        verbatimTextOutput("summary")
-                                                      )),
-                                               column(
-                                                 9,
-                                                 #h4("Brush and double-click to zoom (double-click again to reset)"),
-                                                 plotOutput(
-                                                   outputId = "fliPlot",
-                                                   dblclick = "fliPlot_dblclick",
-                                                   brush = brushOpts(id = "fliPlot_brush",
-                                                                     resetOnNew = TRUE),
-                                                   height = "600px"
-                                                 ) %>% withSpinner(color="#0dc5c1")
-                                               )
-                                             )),
-                                    #sound velocity tab
-                                    tabPanel(title = "Sound Velocity",
-                                             fluidRow(
-                                               column(3,
-                                                      wellPanel(
-                                                        numericInput(inputId = "soundmin",
-                                                                     label = "Sound Axis Minimum",
-                                                                     NULL),
-                                                        numericInput(inputId = "soundmax",
-                                                                     label = "Sound Axis Maximum",
-                                                                     NULL),
-                                                        downloadButton('downloadSouPlot')
-                                                      )),
-                                               column(9,
-                                                      plotOutput(outputId = "souPlot",
-                                                                 height = "600px"
-                                                      ) %>% withSpinner(color="#0dc5c1")
-                                               )
-                                             ),),
-                                    selected = "Map"
-                                  )
-                           )
-                         )
+                 tabItem(tabName = "routing",
+                         routing_ui("curRoute")
+                         ),
+                 tabItem(tabName = "fullMissData",
+                         fullData_ui("gliding")
                  ),
+                 
                  tabItem(tabName = "dataImport",
-                         fluidPage(
-                           
-                           #file upload row
-                           wellPanel(
+                         box(
+                         glide(
+                           height = "500px",
+                           screen(
+                             next_condition = "input.uploadGliderName.length > 0",
+                             h3("Which glider is this?"),
+                             selectInput(
+                               inputId = "uploadGliderName",
+                               label = "Select glider name:",
+                               choices = c("",
+                                           fleetGliders$V1),
+                               selected = NULL
+                             )),
+                           screen(
+                             h3("Upload whole-mission .ssv"),
+                             p("SSV must have: ", code("m_present_time, m_gps_lat,
+                               m_gps_lon, sci_water_cond, sci_water_temp, sci_water_pressure")),
+                             br(),
+                             checkboxInput(
+                               inputId = "generateMap",
+                               label = "Generate map using SSV?",
+                               value = TRUE
+                             ),
                              fileInput(
                                inputId = "upload",
-                               label = "Upload New Mission Data",
+                               label = "Select file:",
                                multiple = FALSE,
-                               accept = c("text/SSV", 
-                                          ".ssv",
-                                          ".rds",
-                                          ".Rdata",
-                                          ".*bd",
-                                          ".kml")
-                             ),
-                             tableOutput('uploadTable')
-                             # selectInput(
-                             #   inputId = "mission",
-                             #   label = "Which mission data to display",
-                             #   choices = c(missionList),
-                             #   selected =  NULL
-                             # 
+                               accept = c(#"text/SSV",
+                                          #".kml",
+                                          #".rds",
+                                          #".Rdata",
+                                          #".*bd",
+                                          ".ssv"
+                                          )
+                             )
+                           )
                            ))
-                         
-                         
+                         # fluidPage(
+                         # 
+                         #   #file upload row
+                         #   wellPanel(
+                         #     fileInput(
+                         #       inputId = "upload",
+                         #       label = "Upload New Mission Data",
+                         #       multiple = FALSE,
+                         #       accept = c("text/SSV",
+                         #                  ".ssv",
+                         #                  ".rds",
+                         #                  ".Rdata",
+                         #                  ".*bd",
+                         #                  ".kml")
+                         #     ),
+                         #     selectInput(
+                         #       inputId = "uploadGliderName",
+                         #       label = "Which glider?",
+                         #       choices = c("usf-bass",
+                         #                   "usf-stella"),
+                         #       selected = NULL
+                         #     ),
+                         #     tableOutput('uploadTable')
+                         #     # selectInput(
+                         #     #   inputId = "mission",
+                         #     #   label = "Which mission data to display",
+                         #     #   choices = c(missionList),
+                         #     #   selected =  NULL
+                         #     #
+                         #   ))
+
+
                          )
+                 
                  ))
            )
 )

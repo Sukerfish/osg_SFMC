@@ -2,13 +2,13 @@ library(tidyverse)
 library(ggplot2)
 library(shiny)
 library(leaflet)
+library(leaflet.extras2)
 library(ggtext)
-#library(leaflet.extras)
 library(sf)
 #library(PlotSvalbard) #devtools::install_github("MikkoVihtakari/PlotSvalbard", upgrade = "never")
 #library(patchwork)
 #library(cowplot)
-#library(Cairo)   # For nicer ggplot2 output when deployed on Linux?
+library(Cairo)   # For nicer ggplot2 output when deployed on Linux?
 library(scales)
 library(seacarb)
 library(shinycssloaders)
@@ -17,11 +17,46 @@ library(slickR)
 library(svglite)
 library(lubridate)
 library(egg)
+library(shinyWidgets)
+library(shinyglide)
+library(ggiraph)
+library(cmocean)
 
 source("./scripts/ssv_to_df.R")
 source("./scripts/loadSSV.R")
 source("./scripts/pseudogram.R")
 source("./scripts/gotoLoad.R")
+source("./scripts/gliderGPS_to_dd.R")
+source("./modules/gliderDashboard.R")
+source("./modules/currentData.R")
+source("./modules/routing.R")
+source("./modules/fullData.R")
+
+deployedGliders <- read.csv("/echos/deployedGliders.txt", 
+                            sep = "",
+                            header = FALSE)
+
+colnames(deployedGliders)[1] = "Name"
+colnames(deployedGliders)[2] = "ahrCap"
+
+fleetGliders <- read.csv("/echos/fleetGliders.txt", 
+                         sep = "",
+                         header = FALSE) %>%
+  arrange(V1)
+
+deployedGliders <- deployedGliders %>%
+  filter(!str_starts(Name,"#")) #remove any commented lines
+
+routesList_files <- file.info(list.files(path = "/echos/routes",
+                                         pattern = "*.ma"))
+
+routesList_files$names <- rownames(routesList_files)
+
+#build route list
+routesList <- list()
+for (i in routesList_files$names) {
+  routesList[[i]] <- gotoLoad(paste0("/echos/routes/", i))
+}
 
 #maximum file upload size of 500mb
 options(shiny.maxRequestSize = 2000*1024^2)
