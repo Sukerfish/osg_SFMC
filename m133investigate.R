@@ -6,6 +6,8 @@ library(patchwork)
 library(rnaturalearth)
 library(rnaturalearthdata)
 library(sf)
+library(ggtext)
+library(cmocean)
 
 theme_osg <- function(){ 
   theme_bw() %+replace%
@@ -22,14 +24,11 @@ theme_osg <- function(){
     )
 }
 
-# df <- gliderdf %>%
-#   select(m_present_time, sci_suna_nitrate_concentration, osg_depth) %>%
-#   filter(!is.na(sci_suna_nitrate_concentration))
-
-spring <- interval(ymd_hm("2023-09-04T03:15"), ymd_hm("2023-09-04T03:54"))
+#spring <- interval(ymd_hm("2023-09-04T03:15"), ymd_hm("2023-09-04T03:54"))
+spring <- interval(ymd_hm("2023-09-04T03:15"), ymd_hm("2023-09-04T03:39")) #one yo only
 
 df <- gliderdf %>%
-  select(m_present_time, osg_salinity, i_lat, i_lon, m_water_depth, osg_depth) %>%
+  select(m_present_time, osg_salinity, i_lat, i_lon, m_water_depth, osg_depth, starts_with("sci")) %>%
   filter(!is.na(osg_salinity)) %>%
   filter(m_present_time %within% spring) %>%
   filter(osg_depth > 1)
@@ -47,7 +46,8 @@ salPlot <-ggplot(data =
  # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
   #geom_hline(yintercept = 0) +
   scale_y_reverse() +
-  scale_colour_viridis_c() +
+  scale_color_cmocean(
+    name = "haline") +
   geom_point(data = filter(df, m_water_depth > 0),
              aes(y = m_water_depth),
              size = 0.1,
@@ -85,7 +85,48 @@ p <- ggplot() +
             size = 3) +
   theme_osg() 
 
-out <- wrap_plots(salPlot, p)
+needVars <- c("sci_bbfl2s_chlor_scaled",  #1
+              "sci_flbbcd_chlor_units",   #2
+              "sci_flbbcd_bb_units",      #3
+              "sci_flbbcd_cdom_units",    #4
+              "sci_oxy3835_oxygen",       #5
+              "sci_oxy4_oxygen",          #6
+              "sci_water_temp")           #7
+
+var <- needVars[4]
+
+tempPlot <- ggplot(data = 
+                    filter(df, (!!rlang::sym(var)) > 0),
+                  aes(x=m_present_time,
+                      y=osg_depth,
+                      color= !!rlang::sym(var))
+) +
+  geom_point(
+    size = 2,
+    na.rm = TRUE
+  ) +
+  # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
+  #geom_hline(yintercept = 0) +
+  scale_y_reverse() +
+  #scale_color_viridis_c() +
+  scale_color_cmocean(
+                      name = "matter") +
+  geom_point(data = filter(df, m_water_depth > 0),
+             aes(y = m_water_depth),
+             size = 0.1,
+             na.rm = TRUE,
+             color = "black"
+  ) +
+  theme_bw() +
+  labs(title = paste0("M133"),
+       y = "Depth (m)",
+       x = "Date") +
+  theme(plot.title = element_text(size = 32)) +
+  theme(axis.title = element_text(size = 16)) +
+  theme(axis.text = element_text(size = 12))
+
+wrap_plots(salPlot, tempPlot)
+out <- wrap_plots(salPlot, tempPlot, p)
 
 # ggsave(filename = "springSite.png",
 #        plot = out,
