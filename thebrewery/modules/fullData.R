@@ -7,20 +7,22 @@ fullData_ui <- function(id) {
   
   tagList(
     fluidPage(
-      wellPanel(  actionButton(
+      box(  actionButton(
         inputId = ns("load"),
         label = "Load Mission Data",
         icon("plane"),
         style =
           "color: #fff; background-color: #963ab7; border-color: #2e6da4"
       ),
+      br(),
       selectInput(
         inputId = ns("mission"),
         label = "Which mission data to display",
         choices = NULL,
         selected =  NULL
       ),
-      br(),
+      ),
+      box(
       airDatepickerInput(
         inputId = ns("date1"),
         label = "Start Date:",
@@ -46,7 +48,7 @@ fullData_ui <- function(id) {
       numericInput(
         inputId = ns("min_depth"),
         label = "Depth Minimum",
-        value = 3,
+        value = 1,
         min = 0,
         max = 1000
       ),
@@ -821,7 +823,7 @@ fullData_server <- function(id) {
         filter(m_present_time %within% soFar) %>%
         #filter(status %in% c(input$status)) %>%
         #filter(!(is.na(input$display_var) | is.na(m_depth))) %>%
-        filter(m_depth >= input$min_depth & m_depth <= input$max_depth)
+        filter(osg_i_depth >= input$min_depth & osg_i_depth <= input$max_depth)
       
       df
       
@@ -839,28 +841,29 @@ fullData_server <- function(id) {
       )
       #req(input$display_var)
       
-      select(chunk(), m_present_time, m_depth, input$display_var) %>%
-        filter(!is.na(across(!c(m_present_time:m_depth))))
+      select(chunk(), m_present_time, osg_i_depth, input$display_var) %>%
+        filter(!is.na(across(!c(m_present_time:osg_i_depth))))
     })
     
     gg1 <- reactive({
 
-      ggplot(data = 
-               scienceChunk(),#dynamically filter the sci variable of interest
+      fullSci <- ggplot(data = 
+               scienceChunk(),
              aes(x=m_present_time,
-                 y=m_depth,
-                 z=.data[[input$display_var]])) +
+                 y=osg_i_depth,
+                 color = .data[[input$display_var]])) +
         geom_point(
-          aes(color = .data[[input$display_var]]),
           na.rm = TRUE
         ) +
         coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
         #geom_hline(yintercept = 0) +
         scale_y_reverse() +
-        scale_colour_viridis_c(limits = c(input$min, input$max)) +
+        #scale_colour_viridis_c(limits = c(input$min, input$max)) +
         geom_point(data = filter(chunk(), m_water_depth > 0),
-                   aes(y = m_water_depth),
-                   size = 0.1,
+                   aes(x = m_present_time,
+                       y = m_water_depth),
+                   color = "black",
+                   size = 0.3,
                    na.rm = TRUE
         ) +
         theme_bw() +
@@ -869,7 +872,42 @@ fullData_server <- function(id) {
              x = "Date") +
         theme(plot.title = element_text(size = 32)) +
         theme(axis.title = element_text(size = 16)) +
-        theme(axis.text = element_text(size = 12))
+        theme(axis.text = element_text(size = 12)) +
+      
+      if (input$display_var == "sci_water_temp") {
+        scale_color_cmocean(limits = c(input$min, input$max),
+                            name = "thermal") 
+      } else if (input$display_var == "sci_water_pressure") {
+        scale_color_cmocean(limits = c(input$min, input$max),
+                            name = "deep")
+      } else if (input$display_var == "sci_water_cond") {
+        scale_color_cmocean(limits = c(input$min, input$max),
+                            name = "haline")
+      } else if (input$display_var == "sci_suna_nitrate_concentration") {
+        scale_color_cmocean(limits = c(input$min, input$max),
+                            name = "tempo") 
+      } else if (input$display_var == "sci_flbbcd_chlor_units" |
+                 input$display_var == "sci_bbfl2s_chlor_scaled" ) {
+        scale_color_cmocean(limits = c(input$min, input$max),
+                            name = "algae") 
+      } else if (input$display_var == "sci_flbbcd_cdom_units" |
+                 input$display_var == "sci_bbfl2s_cdom_scaled" ) {
+        scale_color_cmocean(limits = c(input$min, input$max),
+                            name = "matter") 
+      } else if (input$display_var == "sci_flbbcd_bb_units" |
+                 input$display_var == "sci_bbfl2s_bb_scaled" ) {
+        scale_color_cmocean(limits = c(input$min, input$max),
+                            name = "turbid") 
+      } else if (input$display_var == "sci_oxy3835_oxygen" |
+                 input$display_var == "sci_oxy4_oxygen" ) {
+        scale_color_cmocean(limits = c(input$min, input$max),
+                            name = "oxy") 
+      } else {
+        scale_colour_viridis_c(limits = c(input$min, input$max))
+      }
+      
+      fullSci
+      
     })
     
     output$sciPlot <- renderPlot({gg1()})
@@ -1054,7 +1092,8 @@ fullData_server <- function(id) {
           ) +
           #geom_hline(yintercept = 0) +
           scale_y_reverse() +
-          scale_colour_viridis_c() +
+          scale_color_cmocean(#limits = c(input$minLive, input$maxLive),
+            name = "speed") +
           geom_point(data = wf,
                      aes(y = m_water_depth),
                      size = 0.3,
@@ -1092,7 +1131,8 @@ fullData_server <- function(id) {
           # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
           #geom_hline(yintercept = 0) +
           scale_y_reverse() +
-          scale_colour_viridis_c() +
+          scale_color_cmocean(#limits = c(input$minLive, input$maxLive),
+            name = "dense") +
           geom_point(data = wf,
                      aes(y = m_water_depth),
                      size = 0.3,
@@ -1128,7 +1168,8 @@ fullData_server <- function(id) {
           # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
           #geom_hline(yintercept = 0) +
           scale_y_reverse() +
-          scale_colour_viridis_c() +
+          scale_color_cmocean(#limits = c(input$minLive, input$maxLive),
+            name = "haline") +
           geom_point(data = wf,
                      aes(y = m_water_depth),
                      size = 0.3,

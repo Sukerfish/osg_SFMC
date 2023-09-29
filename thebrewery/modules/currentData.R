@@ -91,7 +91,14 @@ currentData_ui <- function(id) {
                                    column(
                                      9,
                                      # h4("Brush and double-click to zoom (double-click again to reset)"),
-                                     girafeOutput(
+                                     # girafeOutput(
+                                     #   outputId = ns("sciPlotLive"),
+                                     #   # dblclick = "sciPlot_dblclick",
+                                     #   # brush = brushOpts(id = "sciPlot_brush",
+                                     #   #                   resetOnNew = TRUE),
+                                     #   # height = "600px"
+                                     # ) %>% withSpinner(color="#0dc5c1")
+                                     plotlyOutput(
                                        outputId = ns("sciPlotLive"),
                                        # dblclick = "sciPlot_dblclick",
                                        # brush = brushOpts(id = "sciPlot_brush",
@@ -237,15 +244,21 @@ currentData_server <- function(id, gliderName) {
     
     load(paste0("/echos/", gliderName, "/glider_live.RData"))
     
-    startDateLive <- as_datetime(min(gliderdf$m_present_time), tz = "UTC")
-    endDateLive <- as_datetime(max(gliderdf$m_present_time), tz = "UTC")
+    #startDateLive <- as_datetime(min(gliderdf$m_present_time), tz = "UTC")
+    #endDateLive <- as_datetime(max(gliderdf$m_present_time), tz = "UTC")
+    
+    startDateLive <- min(gliderdf$m_present_time)
+    endDateLive <- max(gliderdf$m_present_time)
     
     yoList <- unique(gliderdf$yo_id) %>%
       na.omit() %>%
       sort()
     
     #get start/end days and update data filters
-    updateAirDateInput(session, "date1Live", NULL, value = startDateLive, 
+    #default to last 3 weeks of data
+    updateAirDateInput(session, "date1Live", NULL, value = as.POSIXct(ifelse(interval(startDateLive, endDateLive)/days(1) > 21,
+                                                                             endDateLive-days(21),
+                                                                             startDateLive), tz = "UTC"), 
                        options = list(minDate = startDateLive, maxDate = endDateLive,
                                       timeFormat = "HH:mm"))
     updateAirDateInput(session, "date2Live", NULL, value = endDateLive, 
@@ -481,16 +494,16 @@ currentData_server <- function(id, gliderName) {
             y=osg_i_depth,
             #z=.data[[input$display_varLive]],
             colour = .data[[input$display_varLive]],
-            tooltip = round(.data[[input$display_varLive]], 3)
+            #tooltip = round(.data[[input$display_varLive]], 3)
         )) +
-        geom_point_interactive(
+        geom_point(
           # size = 2,
           na.rm = TRUE
         ) +
         # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
         #geom_hline(yintercept = 0) +
         scale_y_reverse() +
-        scale_colour_viridis_c(limits = c(input$minLive, input$maxLive)) +
+        #scale_colour_viridis_c(limits = c(input$minLive, input$maxLive)) +
         geom_point(data = filter(gliderChunk_live(), m_water_depth > 0 & m_water_depth >= input$min_depth & m_water_depth <= input$max_depth),
                    aes(y = m_water_depth),
                    size = 0.3,
@@ -505,20 +518,54 @@ currentData_server <- function(id, gliderName) {
         theme(plot.title = element_text(size = 32)) +
         theme(axis.title = element_text(size = 16)) +
         theme(axis.text = element_text(size = 12)) +
-        theme(plot.caption = element_markdown())
+        theme(plot.caption = element_markdown()) +
       
-      sciLive
+      if (input$display_varLive == "sci_water_temp") {
+      scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                          name = "thermal") 
+      } else if (input$display_varLive == "sci_water_pressure") {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "deep")
+      } else if (input$display_varLive == "sci_water_cond") {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "haline")
+      } else if (input$display_varLive == "sci_suna_nitrate_concentration") {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "tempo") 
+      } else if (input$display_varLive == "sci_flbbcd_chlor_units"|
+                 input$display_varLive == "sci_bbfl2s_chlor_scaled" ) {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "algae") 
+      } else if (input$display_varLive == "sci_flbbcd_cdom_units"|
+                 input$display_varLive == "sci_bbfl2s_cdom_scaled" ) {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "matter") 
+      } else if (input$display_varLive == "sci_flbbcd_bb_units"|
+                 input$display_varLive == "sci_bbfl2s_bb_scaled" ) {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "turbid") 
+      } else if (input$display_varLive == "sci_oxy3835_oxygen" |
+                 input$display_varLive == "sci_oxy4_oxygen" ) {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "oxy") 
+      } else {
+        scale_colour_viridis_c(limits = c(input$minLive, input$maxLive))
+      }
+      
+      ggplotly(sciLive) %>% toWebGL()
       
     })
     
-    output$sciPlotLive <- renderGirafe(girafe(code = print(gg1Live()),
-                                              width_svg = 12, height_svg = 5,
-                                              options = list(
-                                                opts_sizing(width = .7),
-                                                opts_zoom(max = 5),
-                                                opts_toolbar(position = "bottomleft")
-                                              )
-                                              ))
+    # output$sciPlotLive <- renderGirafe(girafe(code = print(gg1Live()),
+    #                                           width_svg = 12, height_svg = 5,
+    #                                           options = list(
+    #                                             opts_sizing(width = .7),
+    #                                             opts_zoom(max = 5),
+    #                                             opts_toolbar(position = "bottomleft")
+    #                                           )
+    #                                           ))
+    
+    output$sciPlotLive <- renderPlotly(gg1Live())
     
     #flight plot
     gg2Live <- reactive({
@@ -613,7 +660,8 @@ currentData_server <- function(id, gliderName) {
           ) +
           #geom_hline(yintercept = 0) +
           scale_y_reverse() +
-          scale_colour_viridis_c() +
+          scale_color_cmocean(#limits = c(input$minLive, input$maxLive),
+                              name = "speed") +
           geom_point(data = wf,
                      aes(y = m_water_depth),
                      size = 0.3,
@@ -655,7 +703,8 @@ currentData_server <- function(id, gliderName) {
           # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
           #geom_hline(yintercept = 0) +
           scale_y_reverse() +
-          scale_colour_viridis_c() +
+          scale_color_cmocean(#limits = c(input$minLive, input$maxLive),
+                              name = "dense") +
           geom_point(data = wf,
                      aes(y = m_water_depth),
                      size = 0.3,
@@ -694,7 +743,8 @@ currentData_server <- function(id, gliderName) {
           # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
           #geom_hline(yintercept = 0) +
           scale_y_reverse() +
-          scale_colour_viridis_c() +
+          scale_color_cmocean(#limits = c(input$minLive, input$maxLive),
+                              name = "haline") +
           geom_point(data = wf,
                      aes(y = m_water_depth),
                      size = 0.3,
@@ -765,7 +815,7 @@ currentData_server <- function(id, gliderName) {
         # coord_cartesian(xlim = rangesci$x, ylim = rangesci$y, expand = FALSE) +
         #geom_hline(yintercept = 0) +
         scale_y_reverse() +
-        scale_colour_viridis_c(limits = c(input$minLive, input$maxLive)) +
+        #scale_colour_viridis_c(limits = c(input$minLive, input$maxLive)) +
         geom_point(data = filter(yoChunk(), m_water_depth > 0 & m_water_depth >= input$min_depth & m_water_depth <= input$max_depth),
                    aes(y = m_water_depth),
                    size = 0.3,
@@ -780,7 +830,36 @@ currentData_server <- function(id, gliderName) {
         theme(plot.title = element_text(size = 32)) +
         theme(axis.title = element_text(size = 16)) +
         theme(axis.text = element_text(size = 12)) +
-        theme(plot.caption = element_markdown())
+        theme(plot.caption = element_markdown()) +
+      
+      if (input$yo_var == "sci_water_temp") {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "thermal") 
+      } else if (input$yo_var == "sci_water_pressure") {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "deep")
+      } else if (input$yo_var == "sci_water_cond") {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "haline")
+      } else if (input$yo_var == "sci_suna_nitrate_concentration") {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "tempo") 
+      } else if (input$yo_var == "sci_flbbcd_chlor_units") {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "algae") 
+      } else if (input$yo_var == "sci_flbbcd_cdom_units") {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "matter") 
+      } else if (input$yo_var == "sci_flbbcd_bb_units") {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "turbid") 
+      } else if (input$yo_var == "sci_oxy3835_oxygen" |
+                 input$yo_var == "sci_oxy4_oxygen" ) {
+        scale_color_cmocean(limits = c(input$minLive, input$maxLive),
+                            name = "oxy") 
+      } else {
+        scale_colour_viridis_c(limits = c(input$minLive, input$maxLive))
+      }
       
       yoLive
       
