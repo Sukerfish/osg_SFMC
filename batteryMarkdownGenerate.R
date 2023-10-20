@@ -13,18 +13,33 @@ deployedGliders <- deployedGliders %>%
   filter(!str_starts(Name,"#")) #remove any commented lines
 
 for (i in deployedGliders$Name){
-  #load latest live data file into blank environment
-  load(paste0("/echos/", i, "/glider_live.RData"),  gliders <- new.env())
+  #clear out potential objects first
+  invisible(rm(gliderdf, scivarsLive, flightvarsLive, toGliderList,
+          ahrCap,
+          ahrUsed,
+          ahrLeft,
+          pwr3day,
+          pwr1day,
+          ahr3day,
+          ahr1day,
+          ahrAllday,
+          LDmin,
+          battLeft,
+          livePlots,
+          msg))
   
-  if (gliders$ahrCap$ahrCap > 0){
+  #load latest live data file
+  load(paste0("/echos/", i, "/glider_live.RData"))
+  
+  if (ahrCap$ahrCap > 0){
     msg <- envelope() %>%
-      emayili::render("/echos/batteryMarkdown.Rmd", .envir = gliders) %>%
+      emayili::render("/echos/batteryMarkdown.Rmd") %>%
       subject(paste0("Daily summary for ", as.character(i)))
     
     capture.output(print(msg, details = TRUE), file = paste0("/echos/", i, "/summary.html"))
   } else {
     msg <- envelope() %>%
-      emayili::render("/echos/batteryMarkdownNoAmp.Rmd", .envir = gliders) %>%
+      emayili::render("/echos/batteryMarkdownNoAmp.Rmd") %>%
       subject(paste0("Daily summary for ", as.character(i)))
     
     capture.output(print(msg, details = TRUE), file = paste0("/echos/", i, "/summary.html"))
