@@ -13,7 +13,11 @@ deployedGliders <- deployedGliders %>%
   filter(!str_starts(Name,"#")) #remove any commented lines
 
 for (i in deployedGliders$Name){
-  #clear out potential objects first
+  
+  amps <- deployedGliders %>%
+    filter(Name == i)
+  
+  #clear out potential objects
   invisible(rm(gliderdf, scivarsLive, flightvarsLive, toGliderList,
           ahrCap,
           ahrUsed,
@@ -31,7 +35,7 @@ for (i in deployedGliders$Name){
   #load latest live data file
   load(paste0("/echos/", i, "/glider_live.RData"))
   
-  if (ahrCap$ahrCap > 0){
+  if (amps$ahrCap > 0){
     msg <- envelope() %>%
       emayili::render("/echos/batteryMarkdown.Rmd") %>%
       subject(paste0("Daily summary for ", as.character(i)))
