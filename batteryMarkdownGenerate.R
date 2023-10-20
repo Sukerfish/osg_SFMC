@@ -14,36 +14,20 @@ deployedGliders <- deployedGliders %>%
 
 for (i in deployedGliders$Name){
   
+  #extract battery capacity as listed
   amps <- deployedGliders %>%
     filter(Name == i)
   
-  #clear out potential objects
-  invisible(rm(gliderdf, scivarsLive, flightvarsLive, toGliderList,
-          ahrCap,
-          ahrUsed,
-          ahrLeft,
-          pwr3day,
-          pwr1day,
-          ahr3day,
-          ahr1day,
-          ahrAllday,
-          LDmin,
-          battLeft,
-          livePlots,
-          msg))
-  
-  #load latest live data file
-  load(paste0("/echos/", i, "/glider_live.RData"))
-  
+  #pass glidername as parameter from i to each render block
   if (amps$ahrCap > 0){
     msg <- envelope() %>%
-      emayili::render("/echos/batteryMarkdown.Rmd") %>%
+      emayili::render("/echos/batteryMarkdown.Rmd", params = list(gliderName = paste0(i))) %>%
       subject(paste0("Daily summary for ", as.character(i)))
     
     capture.output(print(msg, details = TRUE), file = paste0("/echos/", i, "/summary.html"))
   } else {
     msg <- envelope() %>%
-      emayili::render("/echos/batteryMarkdownNoAmp.Rmd") %>%
+      emayili::render("/echos/batteryMarkdownNoAmp.Rmd", params = list(gliderName = paste0(i))) %>%
       subject(paste0("Daily summary for ", as.character(i)))
     
     capture.output(print(msg, details = TRUE), file = paste0("/echos/", i, "/summary.html"))
