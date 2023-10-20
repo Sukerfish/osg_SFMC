@@ -16,7 +16,7 @@ for (i in deployedGliders$Name){
   #load latest live data file into blank environment
   load(paste0("/echos/", i, "/glider_live.RData"),  gliders <- new.env())
   
-  if (ahrCap$ahrCap > 0){
+  if (gliders$ahrCap$ahrCap > 0){
     msg <- envelope() %>%
       emayili::render("/echos/batteryMarkdown.Rmd", .envir = gliders) %>%
       subject(paste0("Daily summary for ", as.character(i)))
