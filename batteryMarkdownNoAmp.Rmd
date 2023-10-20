@@ -17,8 +17,9 @@ knit_engines$set(asis = function(options) {
 library(tidyverse)
 library(lubridate)
 library(terra)
+library(osgUtils)
   
-source("/srv/shiny-server/thebrewery/scripts/gliderGPS_to_dd.R")
+#source("/srv/shiny-server/thebrewery/scripts/gliderGPS_to_dd.R")
 
 #i <- "usf-gansett"
 #load(paste0("/echos/", i, "/glider_live.RData"))
