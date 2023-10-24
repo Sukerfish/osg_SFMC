@@ -303,6 +303,69 @@ ggsave(filename = "nearbyProfiles.png",
        width = 16,
        height = 9)
 
+#Nbd vs tbd
+NBDdf <- stelladf %>%
+  filter(segment %in% "usf-stella-2023-245-2-19_nbd.ssv") %>%
+  filter(yo_id == 41) %>%
+  mutate(source = "NBD") %>%
+  filter(cast == "Downcast") %>%
+  select(osg_i_depth, osg_soundvel1, gliderName, cast, source)
+
+TBDdf <- stelladf %>%
+  filter(segment %in% "usf-stella-2023-245-2-19.ssv") %>%
+  filter(yo_id == 41) %>%
+  mutate(source = "TBD") %>%
+  filter(cast == "Downcast") %>%
+  select(osg_i_depth, osg_soundvel1, gliderName, cast, source)
+
+dataPlot <- ggplot(data = TBDdf %>%
+                        filter(!is.na(osg_soundvel1)),
+                      aes(x=osg_soundvel1,
+                          y=osg_i_depth,
+                          color = source
+                          #linetype = cast
+                      )) +
+  geom_path(linewidth = 1
+  ) +
+  geom_path(data = NBDdf %>%
+              filter(!is.na(osg_soundvel1)),
+            aes(x=osg_soundvel1,
+                y=osg_i_depth
+                #color = source
+                #linetype = cast
+            ),
+            linewidth = 1) +
+  # geom_path(data = shipCast,
+  #           aes(y = Depth..m.,
+  #               x = SV..m.s.,
+  #               color = "Hogarth",
+  #               linetype = "Ship"),
+  #           linewidth = 1) +
+  scale_y_reverse() +
+  scale_color_manual(values = c("purple", "black", "blue")) +
+  #scale_colour_viridis_d(option = "cividis") +
+  
+  labs(#title = paste0("Single station profiles"),
+    subtitle = "Single station profile data sources",
+    # caption = "Calculated using Coppens <i>et al.</i> (1981)
+    #         <br>
+    #         <br>
+    #         <img src='./www/cms_horiz.png' width='200'/>",
+    color = "File type",
+    linetype = "Glider state",
+    y = "Depth (m)",
+    x = "Sound Speed (m/s)") +
+  #facet_grid(~gliderName) +
+  theme_osg() +
+  theme(plot.title = element_text(vjust = 1.5))
+
+ggsave(filename = "dataSources.png",
+       plot = dataPlot,
+       device = "png",
+       path = "./COMIT",
+       width = 9,
+       height = 9)
+
 #paneled plot
 qlotz <- wrap_plots(plots) +
   plot_layout(guides = "collect",
