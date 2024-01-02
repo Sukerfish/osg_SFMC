@@ -1,0 +1,221 @@
+---
+format:
+  html:
+    self-contained: true
+    toc: true
+    toc-location: left
+    toc-expand: true
+editor: visual
+params: 
+  mission: "M123_usf-jaialai"
+---
+
+```{r}
+#| label: data loading
+#| echo: false
+#| include: false
+
+library(dplyr)
+library(lubridate)
+library(leaflet)
+library(leaflet.extras2)
+library(htmlwidgets)
+library(osgUtils)
+library(terra)
+library(ggplot2)
+
+load(paste0("./thebrewery/Data/", params$mission, ".RData"))
+
+icon.start <- makeAwesomeIcon(
+  icon = "flag", markerColor = "green",
+  library = "fa",
+  iconColor = "black"
+)
+
+icon.end <- makeAwesomeIcon(
+  icon = "flag", markerColor = "red",
+  library = "fa",
+  iconColor = "black"
+)
+
+icon.latest <- makeAwesomeIcon(
+  icon = "flag", markerColor = "purple",
+  library = "fa",
+  iconColor = "black"
+)
+
+```
+
+```{r}
+#| label: data preprocessing
+#| echo: false
+#| include: false
+
+daysDep <- (min(gliderdf$m_present_time) %--% max(gliderdf$m_present_time))/days(1)
+
+pos <- gliderdf %>%
+  filter(!is.na(m_gps_lat)) %>%
+  arrange(m_present_time) %>%
+  select(c(i_lon, i_lat))
+  
+dist <- sum(distance(as.matrix(pos), lonlat = TRUE, sequential = TRUE))
+
+depthDF <- gliderdf %>%
+  group_by(yo_id) %>%
+  mutate(gDepth = max(osg_i_depth, na.rm = TRUE),
+         wDepth = max(m_water_depth, na.rm = TRUE)) %>%
+  filter(!is.na(gDepth)) %>%
+  ungroup() %>%
+  mutate(depthType = ifelse(wDepth <= 50, "shallow", "deep"))
+
+```
+
+## `r params$mission` Overview {#sec-mission-overview}
+
+Days deployed: `r round(daysDep, 2)`
+
+Start date: `r format(min(gliderdf$m_present_time))`
+
+End date: `r format(max(gliderdf$m_present_time))`
+
+Distance covered: `r round(dist/1000, 2)` km
+
+Max depth dive: `r round(max(depthDF$gDepth))` m
+
+### Map {#sec-map}
+
+```{r}
+#| label: map
+#| echo: false
+#| message: false
+#| warn: false
+if(file.exists(paste0("./thebrewery/KML/", params$mission, ".kml"))){
+      #grab .kml per mission number
+      raw_sf <- st_read(paste0("./thebrewery/KML/", params$mission, ".kml"),
+                        layer = "Surfacings")
+      
+      # raw_sf <- st_read(paste0("./thebrewery/KML/", "M112", ".kml"),
+      #                   layer = "Surfacings")
+      
+      #pull out only relevant portion
+      KML_sf <- raw_sf %>%
+        select(Name) #timestamps
+      
+      #get map from sf
+      map_sf <- KML_sf[2:(nrow(KML_sf) - 1),]
+      
+      #convert to long form for start/end markers later
+      mapUp <- KML_sf %>%
+        mutate(long = st_coordinates(.)[,1],
+               lat = st_coordinates(.)[,2]) %>%
+        st_drop_geometry()
+      } else {
+        mapUp <- read.csv(paste0("./thebrewery/KML/", params$mission, ".csv")) %>%
+          select(m_present_time, long, lat)
+        #mapUp2 <- read.csv(paste0("./thebrewery/KML/", "M103_usf-bass", ".csv"))
+        
+        map_sf <- mapUp %>%
+          mutate(Name = m_present_time)
+      }
+      
+      leaflet() %>%
+        #base provider layers
+        addWMSTiles("https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}.png",
+                    layers = "World_Ocean_Base",
+                    group = "Ocean Basemap",
+                    options = WMSTileOptions(format = "image/png", transparent = F)) %>%
+        addWMSTiles("https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}.png",
+                    layers = "World_Ocean_Reference",
+                    group = "Ocean Reference",
+                    options = WMSTileOptions(format = "image/png", transparent = T)) %>%
+        addWMSTiles("https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv?",
+                    layers = "GEBCO_LATEST",
+                    group = "GEBCO",
+                    options = WMSTileOptions(format = "image/png", transparent = F)) %>%
+        addProviderTiles(providers$Esri.WorldImagery,
+                         group = "World Imagery") %>%
+        addLayersControl(baseGroups = c('Ocean Basemap', 'GEBCO', 'World Imagery'),
+                         overlayGroups = c('Ocean Reference')) %>%
+        addPolylines(
+          lat = mapUp$lat,
+          lng = mapUp$long,
+          color = "grey",
+          weight = 3,
+          opacity = 1,
+        ) %>%
+        #timestamps for surfacings
+        addCircles(data = map_sf,
+                   color = "gold",
+                   popup = map_sf$Name,
+                   weight = 3
+        ) %>%
+        #start marker
+        addAwesomeMarkers(
+          lat = mapUp[1, 3],
+          lng = mapUp[1, 2],
+          label = "Starting point",
+          icon = icon.start
+        ) %>%
+        #end marker
+        addAwesomeMarkers(
+          lat = mapUp[nrow(mapUp), 3],
+          lng = mapUp[nrow(mapUp), 2],
+          label = "Ending point",
+          icon = icon.end
+        )
+```
+
+### Science Data
+```{r}
+#| label: science processing
+#| echo: false
+#| warn: false
+#| include: false
+sigma <- mean(gliderdf$osg_rho, na.rm = TRUE)
+
+```
+Mean density: `r round(sigma, 2)`
+
+### Engineering
+
+```{r}
+#| label: engineering processing
+#| echo: false
+#| include: false
+
+ballastDelta <- mean(gliderdf$m_ballast_pumped, na.rm = TRUE)
+battposDelta <- mean(gliderdf$m_battpos, na.rm = TRUE)
+
+  #calculate mean battery voltage daily
+  meanVolt <- gliderdf %>%
+    mutate(day = day(m_present_time),
+           month = month(m_present_time),
+           year = year(m_present_time)) %>%
+    group_by(year, month, day) %>%
+    summarise(battAvg = mean(m_battery, na.rm = TRUE),
+              date = mean(m_present_time),
+              .groups = "keep")
+
+```
+Mean ballast: `r round(ballastDelta, 2)`
+
+Mean battpos: `r round(battposDelta, 2)`
+
+Mean roll: `r round(((mean(gliderdf$m_roll, na.rm = TRUE)*180)/pi), 2)` degrees
+
+```{r}
+#| label: powerPlot
+#| echo: false
+
+
+  (couLive <- ggplot() +
+    geom_point(data = meanVolt, 
+               size = 2, aes(x = date, y = battAvg), color = "red") +
+    #geom_line(data = reference, aes(x = shiftDay, y = avg), color = "blue") +
+    labs(title = "Daily Voltage",
+         #caption = "Reference curve calculated from usf-bass M86 and M109",
+         x = "Date", 
+         y = "Battery (V)") +
+    theme_bw())
+
+```
