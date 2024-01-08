@@ -106,12 +106,24 @@ if(file.exists(paste0("./thebrewery/KML/", params$mission, ".kml"))){
                lat = st_coordinates(.)[,2]) %>%
         st_drop_geometry()
       } else {
-        mapUp <- read.csv(paste0("./thebrewery/KML/", params$mission, ".csv")) %>%
-          select(m_present_time, long, lat)
+        mapUp <- gliderdf %>%
+  select(m_present_time, m_gps_lat, m_gps_lon) %>%
+  filter(!is.na(m_gps_lat)) %>% #clean up input for conversion
+  mutate(latt = format(m_gps_lat, nsmall = 4),
+         longg = format(m_gps_lon, nsmall = 4)) %>% #coerce to character keeping zeroes out to 4 decimals
+  mutate(lat = gliderGPS_to_dd(latt),
+         long = gliderGPS_to_dd(longg)) %>%
+  # mutate(lat = gliderGPS_to_dd(m_gps_lat),
+  #        long = gliderGPS_to_dd(m_gps_lon)) %>%
+  select(m_present_time, lat, long) %>%
+  filter(lat >= -90 & lat <= 90) %>% #remove illegal values
+  filter(long >= -180 & long <= 180)
         #mapUp2 <- read.csv(paste0("./thebrewery/KML/", "M103_usf-bass", ".csv"))
         
         map_sf <- mapUp %>%
           mutate(Name = m_present_time)
+        
+        
       }
       
       leaflet() %>%
@@ -147,21 +159,25 @@ if(file.exists(paste0("./thebrewery/KML/", params$mission, ".kml"))){
         ) %>%
         #start marker
         addAwesomeMarkers(
-          lat = mapUp[1, 3],
-          lng = mapUp[1, 2],
+          lat = mapUp[1, 2],
+          lng = mapUp[1, 3],
           label = "Starting point",
           icon = icon.start
         ) %>%
         #end marker
         addAwesomeMarkers(
-          lat = mapUp[nrow(mapUp), 3],
-          lng = mapUp[nrow(mapUp), 2],
+          lat = mapUp[nrow(mapUp), 2],
+          lng = mapUp[nrow(mapUp), 3],
           label = "Ending point",
           icon = icon.end
-        )
+        ) %>%
+        setView(lng = mean(mapUp$long),
+                lat = mean(mapUp$lat),
+                zoom = 7)
 ```
 
 ### Science Data
+
 ```{r}
 #| label: science processing
 #| echo: false
@@ -170,13 +186,14 @@ if(file.exists(paste0("./thebrewery/KML/", params$mission, ".kml"))){
 sigma <- mean(gliderdf$osg_rho, na.rm = TRUE)
 
 ```
+
 Mean density: `r round(sigma, 2)`
 
 Mean salinity: `r round(mean(gliderdf$osg_salinity, na.rm = TRUE), 2)`
 
 Mean water temperature: `r round(mean(gliderdf$sci_water_temp, na.rm = TRUE), 2)`
 
-``` {r}
+```{r}
 #| label: temp plot
 #| echo: false
 
@@ -272,15 +289,19 @@ battDrop <- depthDF %>%
            month = month(m_present_time),
            year = year(m_present_time)) %>%
     group_by(year, month, day) %>%
-    summarise(battAvg = mean(m_battery, na.rm = TRUE),
-              rollAvg = mean(m_roll, na.rm = TRUE),
-              densAvg = mean(osg_rho, na.rm = TRUE),
-              bpumAvg = mean(m_ballast_pumped, na.rm = TRUE),
-              bposAvg = mean(m_battpos, na.rm = TRUE),
-              date = mean(m_present_time),
-              .groups = "keep")
+    summarise_if(is.numeric, mean, na.rm = TRUE)
+  
+    # summarise(battAvg = mean(m_battery, na.rm = TRUE),
+    #           rollAvg = mean(m_roll, na.rm = TRUE),
+    #           densAvg = mean(osg_rho, na.rm = TRUE),
+    #           bpumAvg = mean(m_ballast_pumped, na.rm = TRUE),
+    #           bposAvg = mean(m_battpos, na.rm = TRUE),
+    #           vacAvg = mean(m_vacuum, na.rm = TRUE),
+    #           date = mean(m_present_time),
+    #           .groups = "keep")
 
 ```
+
 Mean ballast: `r round(ballastDelta, 2)`
 
 Mean battpos: `r round(battposDelta, 2)`
@@ -293,7 +314,7 @@ Mean roll: `r round(((mean(gliderdf$m_roll, na.rm = TRUE)*180)/pi), 2)` degrees
 
   (batt <- ggplot() +
     geom_point(data = dailydf, 
-               size = 2, aes(x = date, y = battAvg), color = "red") +
+               size = 2, aes(x = day, y = m_battery), color = "red") +
     labs(title = "Daily Voltage",
          x = "Date", 
          y = "Battery (V)") +
@@ -310,7 +331,7 @@ Mean roll: `r round(((mean(gliderdf$m_roll, na.rm = TRUE)*180)/pi), 2)` degrees
 
   (roll <- ggplot() +
     geom_point(data = dailydf, 
-               size = 2, aes(x = date, y = ((rollAvg*180)/pi)), color = "darkgreen") +
+               size = 2, aes(x = day, y = ((m_roll*180)/pi)), color = "darkgreen") +
     geom_hline(yintercept = 0, linetype = 2) +
     labs(title = "Daily Roll",
          x = "Date", 
@@ -319,7 +340,7 @@ Mean roll: `r round(((mean(gliderdf$m_roll, na.rm = TRUE)*180)/pi), 2)` degrees
 
   (bpump <- ggplot() +
     geom_point(data = dailydf, 
-               size = 2, aes(x = densAvg, y = bpumAvg), color = "blue") +
+               size = 2, aes(x = osg_rho, y = m_ballast_pumped), color = "blue") +
     geom_hline(yintercept = 0, linetype = 2) +
     labs(title = "Daily ballast performance",
          x = "Density", 
@@ -328,11 +349,19 @@ Mean roll: `r round(((mean(gliderdf$m_roll, na.rm = TRUE)*180)/pi), 2)` degrees
 
   (bpos <- ggplot() +
     geom_point(data = dailydf, 
-               size = 2, aes(x = densAvg, y = bposAvg), color = "navy") +
+               size = 2, aes(x = osg_rho, y = m_battpos), color = "navy") +
     geom_hline(yintercept = 0, linetype = 2) +
     labs(title = "Daily battpos performance",
          x = "Density", 
          y = "Battpos center (in)") +
+    theme_bw())
+
+  (vacta <- ggplot() +
+    geom_point(data = dailydf, 
+               size = 2, aes(x = day, y = m_vacuum), color = "darkred") +
+    labs(title = "Daily vacuum",
+         x = "Date", 
+         y = "Vacuum (inHg") +
     theme_bw())
 
 ```
