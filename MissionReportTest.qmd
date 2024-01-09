@@ -285,10 +285,8 @@ battDrop <- depthDF %>%
 
   #calculate mean battery voltage daily
   dailydf <- gliderdf %>%
-    mutate(day = day(m_present_time),
-           month = month(m_present_time),
-           year = year(m_present_time)) %>%
-    group_by(year, month, day) %>%
+    mutate(ddate = date(m_present_time)) %>%
+    group_by(ddate) %>%
     summarise_if(is.numeric, mean, na.rm = TRUE)
   
     # summarise(battAvg = mean(m_battery, na.rm = TRUE),
@@ -314,7 +312,7 @@ Mean roll: `r round(((mean(gliderdf$m_roll, na.rm = TRUE)*180)/pi), 2)` degrees
 
   (batt <- ggplot() +
     geom_point(data = dailydf, 
-               size = 2, aes(x = day, y = m_battery), color = "red") +
+               size = 2, aes(x = ddate, y = m_battery), color = "red") +
     labs(title = "Daily Voltage",
          x = "Date", 
          y = "Battery (V)") +
@@ -331,7 +329,7 @@ Mean roll: `r round(((mean(gliderdf$m_roll, na.rm = TRUE)*180)/pi), 2)` degrees
 
   (roll <- ggplot() +
     geom_point(data = dailydf, 
-               size = 2, aes(x = day, y = ((m_roll*180)/pi)), color = "darkgreen") +
+               size = 2, aes(x = ddate, y = ((m_roll*180)/pi)), color = "darkgreen") +
     geom_hline(yintercept = 0, linetype = 2) +
     labs(title = "Daily Roll",
          x = "Date", 
@@ -358,7 +356,7 @@ Mean roll: `r round(((mean(gliderdf$m_roll, na.rm = TRUE)*180)/pi), 2)` degrees
 
   (vacta <- ggplot() +
     geom_point(data = dailydf, 
-               size = 2, aes(x = day, y = m_vacuum), color = "darkred") +
+               size = 2, aes(x = ddate, y = m_vacuum), color = "darkred") +
     labs(title = "Daily vacuum",
          x = "Date", 
          y = "Vacuum (inHg") +
