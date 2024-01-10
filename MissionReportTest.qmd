@@ -7,7 +7,7 @@ format:
     toc-expand: true
 editor: visual
 params: 
-  mission: "M123_usf-jaialai"
+  mission: "M123eng_usf-jaialai"
 ---
 
 ```{r}
@@ -24,6 +24,7 @@ library(osgUtils)
 library(terra)
 library(ggplot2)
 library(cmocean)
+library(viridis)
 
 load(paste0("./thebrewery/Data/", params$mission, ".RData"))
 
@@ -59,7 +60,7 @@ depthDF <- gliderdf %>%
   group_by(yo_id) %>%
   mutate(gDepth = max(osg_i_depth, na.rm = TRUE),
          wDepth = max(m_water_depth, na.rm = TRUE),
-         battDelta = max(m_battery, na.rm = TRUE) - min(m_battery, na.rm = TRUE)) %>%
+         battDelta = max(m_battery_inst, na.rm = TRUE) - min(m_battery_inst, na.rm = TRUE)) %>%
   filter(!is.na(gDepth)) %>%
   ungroup() %>%
   mutate(depthType = ifelse(wDepth <= 50, "shallow", "deep"))
@@ -356,10 +357,11 @@ Mean roll: `r round(((mean(gliderdf$m_roll, na.rm = TRUE)*180)/pi), 2)` degrees
 
   (vacta <- ggplot() +
     geom_point(data = dailydf, 
-               size = 2, aes(x = ddate, y = m_vacuum), color = "darkred") +
-    labs(title = "Daily vacuum",
-         x = "Date", 
-         y = "Vacuum (inHg") +
+               size = 2, aes(x = m_veh_temp, y = m_vacuum, color = ddate)) +
+    scale_color_viridis_c() +
+    labs(title = "Temp/vacuum",
+         x = "Temperature (C)", 
+         y = "Vacuum (inHg)") +
     theme_bw())
 
 ```
