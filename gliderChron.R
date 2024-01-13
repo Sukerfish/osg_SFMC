@@ -8,7 +8,7 @@ library(tidyverse)
 
 source("/srv/shiny-server/thebrewery/scripts/gliderLive.R")
 
-deployedGliders <- read.csv("/echos/deployedGliders.txt", 
+deployedGliders <- read.csv("/echos/processGliders.txt", 
                             sep = "",
                             header = FALSE)
 colnames(deployedGliders)[1] = "Name"
