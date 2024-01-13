@@ -2,7 +2,7 @@ library(tidyverse)
 library(emayili)
 
 #get deployed gliders
-deployedGliders <- read.csv("/echos/deployedGliders.txt", 
+deployedGliders <- read.csv("/echos/processGliders.txt", 
                             sep = "",
                             header = FALSE)
 colnames(deployedGliders)[1] = "Name"
