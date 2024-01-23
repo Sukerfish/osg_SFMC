@@ -18,9 +18,18 @@ library(marmap)
 library(FNN)
 
 missionList <- c(
+  #"M122_usf-bass",
   "M123_usf-jaialai",
-  "M116_usf-jaialai",
-  "M127_usf-jaialai"
+  "M125_usf-stellaNoEK",
+  "M126_usf-gansett",
+  "M127_usf-jaialai",
+  "M129_usf-gansett",
+  "M130_usf-jaialai",
+  "M131_usf-jaialai",
+  "M132_usf-gansett",
+  "M133_usf-sam",
+  "M136_usf-sam",
+  "M137_usf-jaialai"
 ) %>%
   sort()
 
@@ -39,6 +48,7 @@ depthDF <- holding$gliderdf %>%
   group_by(yo_id) %>%
   mutate(gDepth = max(osg_i_depth, na.rm = TRUE),
          wDepth = max(m_water_depth, na.rm = TRUE)) %>%
+  filter(m_present_time %within% interval(ymd("2023-01-01"), ymd("2023-12-31"))) %>%
   #ungroup() %>%
   arrange(m_present_time, .by_group = FALSE)
 
@@ -46,17 +56,39 @@ yoDepth <- depthDF %>%
   distinct(yo_id, gDepth, wDepth) %>%
   filter(yo_id > 0)
 
+#find deepest dive
 deepestYo <- yoDepth$yo_id[which(abs(yoDepth$gDepth - max(yoDepth$gDepth, na.rm = TRUE)) == min(abs(yoDepth$gDepth - max(yoDepth$gDepth, na.rm = TRUE))))]
-
+  
 yos <- list()
 for (j in seq_along(depth)){
   offshore <- yoDepth %>%
     filter(yo_id < deepestYo)
   
+  inshore <- yoDepth %>%
+    filter(yo_id > deepestYo)
+  
   yoyo <- offshore$yo_id[which(abs(offshore$wDepth - depth[j]) == min(abs(offshore$wDepth - depth[j])))]
-  yos[[j]] <- depthDF %>%
+  yoyi <- inshore$yo_id[which(abs(inshore$wDepth - depth[j]) == min(abs(inshore$wDepth - depth[j])))]
+  
+  outYo <- depthDF %>%
+    #grab the yo that was identified as best match
     filter(yo_id == yoyo) %>%
-    mutate(isobath = depth[j])
+    filter(cast == "Downcast") %>%
+    #drop the data if the glider didn't get within 15m of the target
+    filter(between(gDepth, depth[j]-15, depth[j]+15)) %>%
+    mutate(isobath = depth[j]) %>%
+    mutate(transect = "out")
+  
+  inYo <- depthDF %>%
+    #grab the yo that was identified as best match
+    filter(yo_id == yoyi) %>%
+    filter(cast == "Downcast") %>%
+    #drop the data if the glider didn't get within 15m of the target
+    filter(between(gDepth, depth[j]-15, depth[j]+15)) %>%
+    mutate(isobath = depth[j]) %>%
+    mutate(transect = "in")
+  
+  yos[[j]] <- bind_rows(outYo, inYo)
 }
 
 #export
@@ -78,7 +110,8 @@ isobathDF <- bind_rows(output, .id = "missionID") %>%
 # Manually extracted hexidecimal ODV colour palette
 ODV_colours <- c("#feb483", "#d31f2a", "#ffc000", "#27ab19", "#0db5e6", "#7139fe", "#d16cfa")
 
-varOI <- "sci_suna_nitrate_concentration"
+varOI <- "sci_water_temp"
+#varOI <- "sci_suna_nitrate_concentration"
 
 # https://theoceancode.netlify.app/post/odv_figures/
 odvPlot <- list()
@@ -86,7 +119,7 @@ for (d in levels(isobathDF$isobath)){
 ctdDF <- isobathDF %>%
   mutate(ndate = as.numeric(ddate)) %>%
   mutate(!!varOI := ifelse(.data[[varOI]] < 0, 0, .data[[varOI]])) %>%
-  #filter(varOI > 0) %>%
+  filter(varOI > 0) %>%
   filter(!is.na(.data[[varOI]])) %>%
   filter(isobath == d) %>%
   arrange(m_present_time)
@@ -109,6 +142,37 @@ odvPlot[[d]] <- ggplot(data = ctd_mba, aes(x = ddate, y = osg_i_depth)) +
 
 (testPlot <- (wrap_plots(odvPlot, ncol = 3, guides = "collect")))
 
+odvVars <- c("sci_water_temp",
+             "osg_rho",
+             "sci_flbbcd_chlor_units",
+             "sci_flbbcd_bb_units")
+
+exportData <- isobathDF %>%
+  group_by(missionID, yo_id) %>%
+  mutate(yo_lat = mean(i_lat, na.rm = TRUE),
+         yo_lon = mean(i_lon, na.rm = TRUE)) %>%
+  select(missionID, yo_id, isobath, transect, m_present_time, yo_lat, yo_lon, osg_i_depth, any_of(odvVars))
+
+iso30 <- exportData %>%
+  filter(isobath == 30)
+write.csv(iso30, "iso30.csv", row.names = FALSE)
+
+iso50 <- exportData %>%
+  filter(isobath == 50)
+write.csv(iso50, "iso50.csv", row.names = FALSE)
+
+iso100 <- exportData %>%
+  filter(isobath == 100)
+write.csv(iso100, "iso100.csv", row.names = FALSE)
+
+# check <- isobathDF %>%
+#   filter(missionID == "M137_usf-jaialai") %>%
+#   group_by(missionID, isobath) %>%
+#   mutate(yo_lat = mean(i_lat, na.rm = TRUE),
+#          yo_lon = mean(i_lon, na.rm = TRUE)) %>%
+#   select(missionID, isobath, m_present_time, yo_lat, yo_lon, osg_i_depth, any_of(odvVars))
+
+zz <- distinct(exportData, missionID, yo_lat)
 # ggsave(filename = "testODV.png",
 #        plot = testPlot,
 #        device = "png",
