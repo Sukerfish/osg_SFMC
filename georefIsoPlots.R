@@ -28,16 +28,16 @@ library(geosphere)
 
 missionList <- c(
   #"M122_usf-bass",
-  # "M123_usf-jaialai",
-  # "M125_usf-stellaNoEK",
-  # "M126_usf-gansett",
-  # "M127_usf-jaialai",
-  # "M129_usf-gansett",
-  # "M130_usf-jaialai",
-  # "M131_usf-jaialai",
-  # "M132_usf-gansett",
-  # "M133_usf-sam",
-  # "M136_usf-sam",
+  "M123_usf-jaialai",
+  "M125_usf-stellaNoEK",
+  "M126_usf-gansett",
+  "M127_usf-jaialai",
+  "M129_usf-gansett",
+  "M130_usf-jaialai",
+  "M131_usf-jaialai",
+  "M132_usf-gansett",
+  "M133_usf-sam",
+  "M136_usf-sam",
   "M137_usf-jaialai"
 ) %>%
   sort()
@@ -120,13 +120,39 @@ for (i in missionList){
     #add check for nearest?
     targets <- gliderTrack[lengths(st_intersects(gliderTrack, iso)) > 0,] %>%
       distinct(yo_id) %>%
+      #get range of yos to check
+      mutate(yoMin = yo_id-3,
+             yoMax = yo_id+3)
+    
+    #only sequence if there are yos to sequence
+      if(length(targets$yo_id) > 0){
+        targets <- targets %>%
+         rowwise() %>%
+         #format for vectorize
+         mutate(yoRan = list(seq.int(yoMin, yoMax))) 
+        
+        #vectorize
+        yoCandidates <- unlist(targets$yoRan, use.names = FALSE)
+        
+        } else {
+        yoCandidates <- NULL
+      }
+    
+    #score the yoCandidates and pick top score for each transect type
+    scoredYos <- depthDF %>%
+      filter(yo_id %in% yoCandidates) %>%
+      group_by(yo_id) %>%
+      mutate(depthDelta = abs(gDepth - (-1*depth[j]))) %>%
+      distinct(depthDelta) %>%
       mutate(transect = ifelse(yo_id < deepestYo, 0, 1)) %>% #0 headed off, 1 headed in
+      ungroup() %>%
       group_by(transect) %>%
+      arrange(depthDelta, .by_group = TRUE) %>%
       slice(1)
     
-    if(length(targets$yo_id[targets$transect == 0]) > 0){
+    if(length(scoredYos$yo_id[scoredYos$transect == 0]) > 0){
     outYo <- depthDF %>%
-      filter(yo_id == targets$yo_id[targets$transect == 0]) %>%
+      filter(yo_id == scoredYos$yo_id[scoredYos$transect == 0]) %>%
       filter(cast == "Downcast") %>%
       #drop the data if the glider didn't get within 15m of the target
       #filter(between(gDepth, depth[j]-15, depth[j]+15)) %>%
@@ -136,9 +162,9 @@ for (i in missionList){
       outYo <- data.frame()
     }
     
-    if(length(targets$yo_id[targets$transect == 1]) > 0){
+    if(length(scoredYos$yo_id[scoredYos$transect == 1]) > 0){
     inYo <- depthDF %>%
-      filter(yo_id == targets$yo_id[targets$transect == 1]) %>%
+      filter(yo_id == scoredYos$yo_id[scoredYos$transect == 1]) %>%
       filter(cast == "Downcast") %>%
       #drop the data if the glider didn't get within 15m of the target
       #filter(between(gDepth, depth[j]-15, depth[j]+15)) %>%
@@ -149,7 +175,7 @@ for (i in missionList){
     }
 
     yos[[j]] <- bind_rows(outYo, inYo)
-    rm(targets, outYo, inYo, iso)
+    rm(targets, outYo, inYo, iso, yoCandidates, scoredYos)
   }
   
   #export
@@ -175,12 +201,25 @@ odvVars <- c("sci_water_temp",
              "sci_flbbcd_bb_units")
 
 exportData <- isobathDF %>%
-  group_by(missionID, yo_id) %>%
+  group_by(missionNum, yo_id) %>%
   mutate(yo_lat = mean(i_lat, na.rm = TRUE),
          yo_lon = mean(i_lon, na.rm = TRUE)) %>%
-  select(missionID, isoMission, yo_id, isobath, transect, m_present_time, yo_lat, yo_lon, osg_i_depth, any_of(odvVars))
+  #mutate(gDepth = max(osg_i_depth, na.rm = TRUE)) %>%
+  select(missionNum, isoMission, yo_id, isobath, transect, m_present_time, yo_lat, yo_lon, osg_i_depth, any_of(odvVars))
 
-zz <- distinct(exportData, missionID, yo_lat, yo_lon)
+iso30csv <- exportData %>%
+  filter(isobath == 30)
+write.csv(iso30csv, "iso30.csv", row.names = FALSE)
+
+iso50csv <- exportData %>%
+  filter(isobath == 50)
+write.csv(iso50csv, "iso50.csv", row.names = FALSE)
+
+iso100csv <- exportData %>%
+  filter(isobath == 100)
+write.csv(iso100csv, "iso100.csv", row.names = FALSE)
+
+zz <- distinct(exportData, isoMission, yo_lat, yo_lon, gDepth)
 
 leaflet() %>%
   #base provider layers
@@ -207,7 +246,7 @@ leaflet() %>%
              lat = zz$yo_lat,
              lng = zz$yo_lon,
              color = "black",
-             popup = zz$missionID
+             popup = zz$isoMission
   ) %>%
   setView(lng = mean(zz$yo_lon),
           lat = mean(zz$yo_lat),
