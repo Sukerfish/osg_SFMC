@@ -27,18 +27,18 @@ library(geosphere)
 #library(htmlwidgets)
 
 missionList <- c(
-  #"M122_usf-bass",
-  "M123_usf-jaialai",
-  "M125_usf-stellaNoEK",
-  "M126_usf-gansett",
-  "M127_usf-jaialai",
-  "M129_usf-gansett",
-  "M130_usf-jaialai",
-  "M131_usf-jaialai",
-  "M132_usf-gansett",
-  "M133_usf-sam",
-  "M136_usf-sam",
-  "M137_usf-jaialai"
+  "M122_usf-bass"
+  # "M123_usf-jaialai",
+  # "M125_usf-stellaNoEK",
+  # "M126_usf-gansett",
+  # "M127_usf-jaialai",
+  # "M129_usf-gansett",
+  # "M130_usf-jaialai",
+  # "M131_usf-jaialai",
+  # "M132_usf-gansett",
+  # "M133_usf-sam",
+  # "M136_usf-sam",
+  #"M137_usf-jaialai"
 ) %>%
   sort()
 
@@ -89,7 +89,7 @@ for (i in missionList){
     group_by(yo_id) %>%
     mutate(gDepth = max(osg_i_depth, na.rm = TRUE),
            wDepth = max(m_water_depth, na.rm = TRUE)) %>%
-    filter(m_present_time %within% interval(ymd("2023-01-01"), ymd("2023-12-31"))) %>%
+    #filter(m_present_time %within% interval(ymd("2023-01-01"), ymd("2023-12-31"))) %>%
     #ungroup() %>%
     arrange(m_present_time, .by_group = FALSE)
   
@@ -209,17 +209,17 @@ exportData <- isobathDF %>%
 
 iso30csv <- exportData %>%
   filter(isobath == 30)
-write.csv(iso30csv, "iso30.csv", row.names = FALSE)
+#write.csv(iso30csv, "iso30.csv", row.names = FALSE)
 
 iso50csv <- exportData %>%
   filter(isobath == 50)
-write.csv(iso50csv, "iso50.csv", row.names = FALSE)
+#write.csv(iso50csv, "iso50.csv", row.names = FALSE)
 
 iso100csv <- exportData %>%
   filter(isobath == 100)
-write.csv(iso100csv, "iso100.csv", row.names = FALSE)
+#write.csv(iso100csv, "iso100.csv", row.names = FALSE)
 
-zz <- distinct(exportData, isoMission, yo_lat, yo_lon, gDepth)
+zz <- distinct(isobathDF, isoMission, yo_lat, yo_lon)
 
 leaflet() %>%
   #base provider layers
@@ -251,3 +251,66 @@ leaflet() %>%
   setView(lng = mean(zz$yo_lon),
           lat = mean(zz$yo_lat),
           zoom = 7)
+
+# meter30 <- read.csv("iso30.csv")
+# meter50 <- read.csv("iso50.csv")
+# meter100 <- read.csv("iso100_JAadded.csv")
+
+isobathDF <- meter30 %>%
+  full_join(meter50) %>%
+  full_join(meter100) %>%
+  mutate(isobath = as.factor(isobath),
+         m_present_time = as_datetime(m_present_time)) %>%
+  full_join(exportData)
+
+new100 <- meter100 %>%
+  mutate(isobath = as.factor(isobath),
+         m_present_time = as_datetime(m_present_time)) %>%
+  full_join(iso100csv) %>%
+  arrange(m_present_time)
+#write.csv(new100, "iso100_JAadded.csv", row.names = FALSE)
+
+# Manually extracted hexidecimal ODV colour palette
+ODV_colours <- c("#feb483", "#d31f2a", "#ffc000", "#27ab19", "#0db5e6", "#7139fe", "#d16cfa")
+
+varOI <- "sci_water_temp"
+#varOI <- "sci_suna_nitrate_concentration"
+
+# https://theoceancode.netlify.app/post/odv_figures/
+odvPlot <- list()
+for (d in levels(isobathDF$isobath)){
+  ctdDF <- isobathDF %>%
+    mutate(ndate = as.numeric(date(m_present_time))) %>%
+    mutate(ddate = date(m_present_time)) %>%
+    mutate(!!varOI := ifelse(.data[[varOI]] < 0, 0, .data[[varOI]])) %>%
+    filter(varOI > 0) %>%
+    filter(!is.na(.data[[varOI]])) %>%
+    filter(isobath == d) %>%
+    arrange(m_present_time)
+  
+  ctd_mba <- mba.surf(ctdDF[c("ndate", "osg_i_depth", paste0(varOI))], no.X = 300, no.Y = 300, extend = T)
+  dimnames(ctd_mba$xyz.est$z) <- list(ctd_mba$xyz.est$x, ctd_mba$xyz.est$y)
+  ctd_mba <- melt(ctd_mba$xyz.est$z, varnames = c('ndate', 'osg_i_depth'), value.name = paste0(varOI)) %>%
+    mutate(ddate = as_date(ndate))
+  
+  odvPlot[[d]] <- ggplot(data = ctd_mba, aes(x = ddate, y = osg_i_depth)) +
+    geom_raster(aes(fill = .data[[varOI]])) +
+    geom_contour(aes(z = .data[[varOI]]), binwidth = 2, colour = "black", alpha = 0.2) +
+    geom_contour(aes(z = .data[[varOI]]), breaks = 26, colour = "black") +
+    geom_point(data = ctdDF, aes(x = ddate, y = osg_i_depth),
+               colour = "black", 
+               alpha = 0.3,
+               size = 1
+               ) +
+    # scale_fill_gradientn(limits = c(min(isobathDF[[varOI]], na.rm = TRUE), max(isobathDF[[varOI]], na.rm = TRUE)),
+    #                      colours = rev(ODV_colours)) +
+    scale_fill_gradientn(limits = c(17.5, 32.5),
+                         colours = rev(ODV_colours)) +
+    labs(y = "depth (m)", x = "date", fill = "n", title = paste0(d, "-m isobath")) +
+    scale_y_reverse(limits = c()) +
+    coord_cartesian(expand = F)
+}
+
+(testPlot <- (wrap_plots(odvPlot, ncol = 3, guides = "collect")))
+
+(plot30 <- odvPlot[["100"]])
