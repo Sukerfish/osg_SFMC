@@ -1,13 +1,14 @@
 ---
 format:
   html:
-    self-contained: true
-    toc: true
+    toc: false
     toc-location: left
     toc-expand: true
+    standalone: true
+    embed-resources: true
 editor: visual
 params: 
-  mission: "M123eng_usf-jaialai"
+  mission: "M123_usf-jaialai"
 ---
 
 ```{r}
@@ -18,6 +19,7 @@ params:
 library(dplyr)
 library(lubridate)
 library(leaflet)
+library(leaflet.extras)
 library(leaflet.extras2)
 library(htmlwidgets)
 library(osgUtils)
@@ -25,8 +27,9 @@ library(terra)
 library(ggplot2)
 library(cmocean)
 library(viridis)
+library(patchwork)
 
-load(paste0("./thebrewery/Data/", params$mission, ".RData"))
+load(paste0("./Data/", params$mission, ".RData"))
 
 icon.start <- makeAwesomeIcon(
   icon = "flag", markerColor = "green",
@@ -60,7 +63,8 @@ depthDF <- gliderdf %>%
   group_by(yo_id) %>%
   mutate(gDepth = max(osg_i_depth, na.rm = TRUE),
          wDepth = max(m_water_depth, na.rm = TRUE),
-         battDelta = max(m_battery_inst, na.rm = TRUE) - min(m_battery_inst, na.rm = TRUE)) %>%
+         # battDelta = max(m_battery_inst, na.rm = TRUE) - min(m_battery_inst, na.rm = TRUE)
+         ) %>%
   filter(!is.na(gDepth)) %>%
   ungroup() %>%
   mutate(depthType = ifelse(wDepth <= 50, "shallow", "deep"))
@@ -69,15 +73,43 @@ depthDF <- gliderdf %>%
 
 ## `r params$mission` Overview {#sec-mission-overview}
 
-Days deployed: `r round(daysDep, 2)`
+|                   |                                           |
+|-------------------|-------------------------------------------|
+| Days deployed:    | `r round(daysDep, 2)`                     |
+| Start date (UTC): | `r format(min(gliderdf$m_present_time))`  |
+| End date (UTC):   | `r format(max(gliderdf$m_present_time))`  |
+| Distance covered: | `r round(dist/1000, 2)` km                |
+| Max dive depth:   | `r round(max(depthDF$gDepth))` m          |
+| Number of yos:    | `r round(length(unique(gliderdf$yo_id)))` |
 
-Start date: `r format(min(gliderdf$m_present_time))`
+```{r}
+#| label: overview
+#| echo: FALSE
+#| message: FALSE
+#| eval: FALSE
 
-End date: `r format(max(gliderdf$m_present_time))`
+# tbl-cap: "Mission overview."
 
-Distance covered: `r round(dist/1000, 2)` km
-
-Max dive depth: `r round(max(depthDF$gDepth))` m
+# a <- c("Days deployed:", 
+#        "Start date (UTC):", 
+#        "End date (UTC):",
+#        "Distance covered:", 
+#        "Max dive depth:", 
+#        "Number of yos:")
+# b <- c(round(daysDep, 2),
+#  format(min(gliderdf$m_present_time)),
+#  format(max(gliderdf$m_present_time)),
+#  paste0(round(dist/1000, 2), " km"),
+#  paste0(round(max(depthDF$gDepth)), " m"),
+#  round(length(unique(gliderdf$yo_id))))
+# 
+# total <- data.frame(a,b) %>%
+#   flextable(.) %>%
+#   set_caption(caption = NULL) %>%
+#   delete_part(part = "header")
+# 
+# total
+```
 
 ### Map {#sec-map}
 
@@ -174,7 +206,8 @@ if(file.exists(paste0("./thebrewery/KML/", params$mission, ".kml"))){
         ) %>%
         setView(lng = mean(mapUp$long),
                 lat = mean(mapUp$lat),
-                zoom = 7)
+                zoom = 7) %>%
+      addFullscreenControl()
 ```
 
 ### Science Data
@@ -281,8 +314,8 @@ Mean water temperature: `r round(mean(gliderdf$sci_water_temp, na.rm = TRUE), 2)
 ballastDelta <- mean(gliderdf$m_ballast_pumped, na.rm = TRUE)
 battposDelta <- mean(gliderdf$m_battpos, na.rm = TRUE)
 
-battDrop <- depthDF %>%
-  distinct(battDelta, gDepth)
+# battDrop <- depthDF %>%
+#   distinct(battDelta, gDepth)
 
   #calculate mean battery voltage daily
   dailydf <- gliderdf %>%
@@ -311,57 +344,57 @@ Mean roll: `r round(((mean(gliderdf$m_roll, na.rm = TRUE)*180)/pi), 2)` degrees
 #| label: powerPlot
 #| echo: false
 
-  (batt <- ggplot() +
-    geom_point(data = dailydf, 
-               size = 2, aes(x = ddate, y = m_battery), color = "red") +
-    labs(title = "Daily Voltage",
-         x = "Date", 
-         y = "Battery (V)") +
-    theme_bw())
+(batt <- ggplot() +
+  geom_point(data = dailydf, 
+             size = 2, aes(x = ddate, y = m_battery), color = "red") +
+  labs(title = "Daily Voltage",
+       x = "Date", 
+       y = "Battery (V)") +
+  theme_bw())
 
-  (battDepth <- ggplot() +
-    geom_point(data = battDrop, 
-               size = 2, aes(x = gDepth, y = battDelta), color = "red") +
-    labs(title = "Voltage drop at depth",
-         x = "Max glider depth", 
-         y = "Voltage diff (V)") +
-    theme_bw())
+# (battDepth <- ggplot() +
+#   geom_point(data = battDrop, 
+#              size = 2, aes(x = gDepth, y = battDelta), color = "red") +
+#   labs(title = "Voltage drop at depth",
+#        x = "Max glider depth", 
+#        y = "Voltage diff (V)") +
+#   theme_bw())
 
 
-  (roll <- ggplot() +
-    geom_point(data = dailydf, 
-               size = 2, aes(x = ddate, y = ((m_roll*180)/pi)), color = "darkgreen") +
-    geom_hline(yintercept = 0, linetype = 2) +
-    labs(title = "Daily Roll",
-         x = "Date", 
-         y = "Roll (deg)") +
-    theme_bw())
+(roll <- ggplot() +
+  geom_point(data = dailydf, 
+             size = 2, aes(x = ddate, y = ((m_roll*180)/pi)), color = "darkgreen") +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(title = "Daily Roll",
+       x = "Date", 
+       y = "Roll (deg)") +
+  theme_bw())
 
-  (bpump <- ggplot() +
-    geom_point(data = dailydf, 
-               size = 2, aes(x = osg_rho, y = m_ballast_pumped), color = "blue") +
-    geom_hline(yintercept = 0, linetype = 2) +
-    labs(title = "Daily ballast performance",
-         x = "Density", 
-         y = "Ballast pump center (cc)") +
-    theme_bw())
+(bpump <- ggplot() +
+  geom_point(data = dailydf, 
+             size = 2, aes(x = osg_rho, y = m_ballast_pumped), color = "blue") +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(title = "Daily ballast performance",
+       x = "Density", 
+       y = "Ballast pump center (cc)") +
+  theme_bw())
 
-  (bpos <- ggplot() +
-    geom_point(data = dailydf, 
-               size = 2, aes(x = osg_rho, y = m_battpos), color = "navy") +
-    geom_hline(yintercept = 0, linetype = 2) +
-    labs(title = "Daily battpos performance",
-         x = "Density", 
-         y = "Battpos center (in)") +
-    theme_bw())
+(bpos <- ggplot() +
+  geom_point(data = dailydf, 
+             size = 2, aes(x = osg_rho, y = m_battpos), color = "navy") +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(title = "Daily battpos performance",
+       x = "Density", 
+       y = "Battpos center (in)") +
+  theme_bw())
 
-  (vacta <- ggplot() +
-    geom_point(data = dailydf, 
-               size = 2, aes(x = m_veh_temp, y = m_vacuum, color = ddate)) +
-    scale_color_viridis_c() +
-    labs(title = "Temp/vacuum",
-         x = "Temperature (C)", 
-         y = "Vacuum (inHg)") +
-    theme_bw())
+# (vacta <- ggplot() +
+#   geom_point(data = dailydf, 
+#              size = 2, aes(x = m_vehicle_temp, y = m_vacuum, color = ddate)) +
+#   scale_color_viridis_c() +
+#   labs(title = "Temp/vacuum",
+#        x = "Temperature (C)", 
+#        y = "Vacuum (inHg)") +
+#   theme_bw())
 
 ```
