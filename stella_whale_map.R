@@ -76,6 +76,11 @@ for (i in 1:nrow(whale_times)) {
 
 whale_locations <- bind_rows(out, .id = "det_number")
 
+whale_out <- whale_locations %>%
+  select(m_present_time, i_lat, i_lon, det_number)
+
+#write.csv(whale_out, "whale_gps.csv", row.names = FALSE)
+
 whale_crep <- whale_locations %>%
   select(m_present_time, i_lat, i_lon) %>%
   rename(dateTime = m_present_time,
