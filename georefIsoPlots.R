@@ -27,7 +27,7 @@ library(geosphere)
 #library(htmlwidgets)
 
 missionList <- c(
-  "M122_usf-bass"
+  # "M122_usf-bass"
   # "M123_usf-jaialai",
   # "M125_usf-stellaNoEK",
   # "M126_usf-gansett",
@@ -38,7 +38,14 @@ missionList <- c(
   # "M132_usf-gansett",
   # "M133_usf-sam",
   # "M136_usf-sam",
-  #"M137_usf-jaialai"
+  # "M137_usf-jaialai"
+  "M138_usf-sam",
+  "M141_usf-jaialai",
+  "M143_usf-jaialai",
+  "M145_usf-bass",
+  "M146_usf-stella",
+  "M147_usf-jaialai",
+  "M149_usf-jaialai"
 ) %>%
   sort()
 
@@ -209,15 +216,15 @@ exportData <- isobathDF %>%
 
 iso30csv <- exportData %>%
   filter(isobath == 30)
-#write.csv(iso30csv, "iso30.csv", row.names = FALSE)
+write.csv(iso30csv, "iso30.csv", row.names = FALSE)
 
 iso50csv <- exportData %>%
   filter(isobath == 50)
-#write.csv(iso50csv, "iso50.csv", row.names = FALSE)
+write.csv(iso50csv, "iso50.csv", row.names = FALSE)
 
 iso100csv <- exportData %>%
   filter(isobath == 100)
-#write.csv(iso100csv, "iso100.csv", row.names = FALSE)
+write.csv(iso100csv, "iso100.csv", row.names = FALSE)
 
 zz <- distinct(isobathDF, isoMission, yo_lat, yo_lon)
 

@@ -16,9 +16,10 @@ library(lubridate)
 # out + scale_fill_continuous(name="Amplitude\n(dB)\n", limits=c(-30,0), na.value="transparent")
 
 #z = "20230328T152400_4407951451798164_2.0.wav"
-z = "20230328T150400_4407951451798164_2.0.wav"
+z = "20241123T200100_4434821331994775_2.0.wav"
+dirz ="PAM146"
 
-pamInfo <- file.info(list.files(path = "/echos/PAMrice/",
+pamInfo <- file.info(list.files(path = paste0("D:/", dirz, "/"),
                                 full.names = TRUE)) %>%
   filter(size > 0)
 
@@ -39,11 +40,14 @@ pb <- txtProgressBar(min = 0,
 for (i in 1:iters){
   #init[i] <- Sys.time()
   #print(i)
+  if(file.exists(paste0("D:/", dirz, "/spectro/", pamList[i], ".png"))) {
+    next
+  }
   
-  inwave <- readWave(paste0("/echos/PAMrice/", pamList[i]))
+  inwave <- readWave(paste0("D:/", dirz, "/", pamList[i]))
   #inwave <- readWave(paste0(i))
   
-  png(paste0("/echos/PAMrice/spectro/", pamList[i], ".png"),
+  png(paste0("D:/", dirz, "/spectro/", pamList[i], ".png"),
       width = 1920,
       height = 1080)
   
@@ -188,3 +192,24 @@ spectro(e,f=8000,wl=512)
 myfilter1<-rep(c(rep(0,64),rep(1,64)),4)
 g<-ffilter(a,f=8000,custom=myfilter1)
 spectro(g,f=8000)
+
+
+inwave <- readWave(paste0(z))
+#inwave <- readWave(paste0(i))
+
+png(paste0(z, ".png"),
+    width = 1920,
+    height = 1080)
+
+# png(paste0(i, ".png"),
+#     width = 1920,
+#     height = 1080)
+
+rewave <- resamp(inwave, g = 2000)
+fwave <- ffilter(rewave, f = 2000, from = 10, to=1000, fftw = TRUE)
+
+out <- spectro(fwave,f=2000,wl=1024,ovlp=85,fftw = TRUE)
+
+#out <- ggspectro(rewave, f = 2000, flog=TRUE, wl=512)
+
+dev.off()
