@@ -33,13 +33,14 @@ for (i in deployedGliders$Name){
     segdf <- gliderdf %>%
       filter(segment == j) %>%
       select(any_of(needVars)) %>%
-      mutate(m_present_time = as.numeric(m_present_time))
+      mutate(m_present_time = as.numeric(m_present_time)) %>% 
+      mutate_all(~ifelse(is.nan(.), NA, .))
     
     #write new file if not already present
     if (!file.exists(paste0("/echos/segments/", i, "/", seg, ".csv"))){
     write.csv(segdf, 
                 file = paste0("/echos/segments/", i, "/", seg, ".csv"), 
-                row.names = FALSE, col.names = TRUE, quote = FALSE)
+                row.names = FALSE, col.names = TRUE, quote = FALSE, na="")
     }
     
   }
